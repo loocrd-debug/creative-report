@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>크리에이티브그룹 업무보고 시스템 v3 🔥</title>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDMGvWJJQ8p5nN4jF7vt_v-fk5M9hfRiHo",
+  authDomain:        "creative-report-e38d7.firebaseapp.com",
+  databaseURL:       "https://creative-report-e38d7-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "creative-report-e38d7",
+  storageBucket:     "creative-report-e38d7.firebasestorage.app",
+  messagingSenderId: "331099178371",
+  appId:             "1:331099178371:web:a6008bab14c3f68521e2b6"
+};
+
+const IS_DEMO = false; // Firebase 설정 완료
+let db = null;
+if(!IS_DEMO){
+  try{
+    const app = initializeApp(FIREBASE_CONFIG);
+    db = getDatabase(app);
+  }catch(e){console.error(e);}
+}
+
+window.fbSaveDailyReport = async function(dk,data){
+  if(!db){let a=JSON.parse(localStorage.getItem("daily_"+dk)||"[]");const i=a.findIndex(d=>d.writer===data.writer);if(i>=0)a[i]=data;else a.push(data);localStorage.setItem("daily_"+dk,JSON.stringify(a));return true;}
+  try{await set(ref(db,"reports/daily/"+dk+"/"+data.writer.replace(/[\s\.]/g,"_")),{...data,savedAt:Date.now()});return true;}catch(e){return false;}
+};
+window.fbLoadWeekData = async function(keys){
+  if(!db){const r={};keys.forEach(k=>{const a=JSON.parse(localStorage.getItem("daily_"+k)||"[]");if(a.length)r[k]=a;});return r;}
+  const r={};for(const k of keys){try{const s=await get(ref(db,"reports/daily/"+k));if(s.exists())r[k]=Object.values(s.val());}catch(e){}}return r;
+};
+window.fbSaveMembers = async function(m){if(!db){localStorage.setItem("members",JSON.stringify(m));return;}try{await set(ref(db,"config/members"),m);}catch(e){}};
+window.fbLoadMembers = async function(){if(!db)return JSON.parse(localStorage.getItem("members")||"null");try{const s=await get(ref(db,"config/members"));return s.exists()?s.val():null;}catch(e){return null;}};
+window.fbWatchTodayReports = function(dk,cb){if(!db)return;onValue(ref(db,"reports/daily/"+dk),s=>{if(s.exists())cb(Object.values(s.val()));});};
+window.IS_DEMO=IS_DEMO;window.FB_READY=true;document.dispatchEvent(new Event("fb-ready"));
+</script>
+</head>
+<body>
+<p style="padding:40px;color:#888;font-family:sans-serif;">⚠️ 이 파일은 자동 생성된 기본 템플릿입니다.<br>원본 daily_report_tool_v3.html 파일을 업로드하면 전체 UI가 포함됩니다.</p>
+</body>
+</html>

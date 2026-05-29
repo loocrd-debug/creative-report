@@ -974,8 +974,8 @@ async function doHWP(){
     const blob=await res.blob();
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download=(isWeekly?'주간':'일일')+'상황보고_크리에이티브그룹.hwpx';
-    a.click();
-  }catch(e){alert('오류: '+e.message+'\n\nCloud Functions가 배포되지 않았을 수 있습니다.');}
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }catch(e){alert('오류: '+e.message);}
   finally{if(btn){btn.textContent='📄 HWP 저장';btn.disabled=false;}}
 }
 

@@ -771,12 +771,12 @@ document.getElementById('userSel').addEventListener('change', async ()=>{
   if(!user || !window.fbGet) return;
   const key = user.replace(/[\s.()]/g,'_');
   const saved = await window.fbGet(`reports/daily/${TKEY}/${key}`);
-  if(!saved) return;
+  if(!saved){ return; }
 
-  // 날짜
+  // ── 날짜 ──
   if(saved.date) document.getElementById('rptDate').value = saved.date;
 
-  // 본부 주요행사
+  // ── 본부 주요행사 ──
   const evtRows = document.querySelectorAll('#evtB tr');
   (saved.main_events||[]).forEach((ev,i)=>{
     if(!evtRows[i]) return;
@@ -786,25 +786,62 @@ document.getElementById('userSel').addEventListener('change', async ()=>{
     if(c[2]) c[2].value = ev.note||'';
   });
 
-  // 요약 현안 이슈
+  // ── 요약 현안이슈 ──
   const sumBox = document.getElementById('sumI');
-  sumBox.innerHTML='';
-  (saved.sum_issues||[]).forEach(iss=>{ addIssue('sumI', iss.project, iss.items||[]); });
-  if(!saved.sum_issues||saved.sum_issues.length===0) addIssue('sumI');
+  if(sumBox){
+    sumBox.innerHTML = '';
+    const sumList = saved.sum_issues||[];
+    if(sumList.length > 0){
+      sumList.forEach(iss=>{
+        addIssue('sumI');
+        const items = sumBox.querySelectorAll('.item');
+        const last = items[items.length-1];
+        if(!last) return;
+        const pnm = last.querySelector('.pnm');
+        if(pnm) pnm.value = iss.project||'';
+        const inputs = last.querySelectorAll('.binp input');
+        (iss.items||[]).forEach((it,i2)=>{
+          if(i2 === 0 && inputs[0]){ inputs[0].value = it; }
+          else { addBR(last.querySelector('[id^="il"]')?.id, '-'); const newInps = last.querySelectorAll('.binp input'); if(newInps[i2]) newInps[i2].value = it; }
+        });
+      });
+    } else { addIssue('sumI'); }
+  }
 
-  // 원본 현안 이슈
+  // ── 원본 현안이슈 ──
   const origBox = document.getElementById('origI');
-  origBox.innerHTML='';
-  (saved.orig_issues||[]).forEach(iss=>{ addIssue('origI', iss.project, iss.items||[]); });
-  if(!saved.orig_issues||saved.orig_issues.length===0) addIssue('origI');
+  if(origBox){
+    origBox.innerHTML = '';
+    const origList = saved.orig_issues||[];
+    if(origList.length > 0){
+      origList.forEach(iss=>{
+        addIssue('origI','orig');
+        const items = origBox.querySelectorAll('.item');
+        const last = items[items.length-1];
+        if(!last) return;
+        const pnm = last.querySelector('.pnm');
+        if(pnm) pnm.value = iss.project||'';
+        const inputs = last.querySelectorAll('.binp input');
+        (iss.items||[]).forEach((it,i2)=>{
+          if(i2 === 0 && inputs[0]){ inputs[0].value = it; }
+          else { addBR(last.querySelector('[id^="il"]')?.id, '-'); const newInps = last.querySelectorAll('.binp input'); if(newInps[i2]) newInps[i2].value = it; }
+        });
+      });
+    } else { addIssue('origI','orig'); }
+  }
 
-  // 인력동향
+  // ── 인력동향 ──
   const manBox = document.getElementById('manB');
-  manBox.querySelector('.binp').innerHTML='';
-  (saved.manpower||[]).forEach(m=>{ addBullet('manB', m); });
-  if(!saved.manpower||saved.manpower.length===0) addBullet('manB');
+  if(manBox){
+    const manList = saved.manpower||[];
+    const manRows = manBox.querySelectorAll('.brow');
+    manRows.forEach((r,i)=>{
+      const inp = r.querySelector('input');
+      if(inp) inp.value = manList[i]||'';
+    });
+  }
 
-  // 주요일정
+  // ── 주요일정 ──
   const schedRows = document.querySelectorAll('#schedB tr');
   (saved.schedule||[]).forEach((s,i)=>{
     if(!schedRows[i]) return;
@@ -814,11 +851,12 @@ document.getElementById('userSel').addEventListener('change', async ()=>{
     if(c[2]) c[2].value = s.note||'';
   });
 
-  // 제안발표 요약
-  if(saved.proposal_summary !== undefined)
-    document.getElementById('propSum').value = saved.proposal_summary||'';
+  // ── 제안발표 요약 ──
+  const propSumEl = document.getElementById('propSum');
+  if(propSumEl && saved.proposal_summary !== undefined)
+    propSumEl.value = saved.proposal_summary||'';
 
-  // 제안목록
+  // ── 제안목록 ──
   const propRows = document.querySelectorAll('#propB tr');
   (saved.proposals||[]).forEach((p,i)=>{
     if(!propRows[i]) return;
@@ -828,16 +866,34 @@ document.getElementById('userSel').addEventListener('change', async ()=>{
     if(c[2]) c[2].value = p.date||'';
   });
 
-  // 공공사업 상세
+  // ── 공공사업 상세 ──
   const bizBox = document.getElementById('bizB');
-  bizBox.innerHTML='';
-  (saved.biz_details||[]).forEach(b=>{ addBiz(b.name, b.details||[]); });
-  if(!saved.biz_details||saved.biz_details.length===0) addBiz();
+  if(bizBox){
+    bizBox.innerHTML = '';
+    const bizList = saved.biz_details||[];
+    if(bizList.length > 0){
+      bizList.forEach(b=>{
+        addBiz('bizB');
+        const items = bizBox.querySelectorAll('.item');
+        const last = items[items.length-1];
+        if(!last) return;
+        const nameInp = last.querySelector('input');
+        if(nameInp) nameInp.value = b.name||'';
+        const detInputs = last.querySelectorAll('.binp input');
+        (b.details||[]).forEach((d,i2)=>{
+          if(i2 === 0 && detInputs[0]){ detInputs[0].value = d; }
+          else { addBR(last.querySelector('[id^="bd"]')?.id,'ㆍ'); const newInps = last.querySelectorAll('.binp input'); if(newInps[i2]) newInps[i2].value = d; }
+        });
+      });
+    } else { addBiz('bizB'); }
+  }
 
   updProg();
+
+  // ── 완료 토스트 ──
   const tip = document.createElement('div');
-  tip.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;';
-  tip.textContent = `✅ ${user}님의 기존 작성 내용을 불러왔습니다`;
+  tip.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+  tip.textContent = `✅ ${user}님의 저장된 내용을 불러왔습니다`;
   document.body.appendChild(tip);
   setTimeout(()=>tip.remove(), 3000);
 });

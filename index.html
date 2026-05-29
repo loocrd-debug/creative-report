@@ -956,7 +956,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
 </div>
 
 <!-- ════ 팀원관리 탭 ════ -->
-<div id="tab-members" class="main hidden">
+<div id="main-tab-members" class="main hidden">
   <div class="section-card">
     <div class="section-header">
       <div class="section-title"><span class="section-num">TM</span>팀원 목록</div>
@@ -1024,7 +1024,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
 <!-- ═══ Firebase 설정 ═══ -->
 
 <!-- ════ Firebase설정 탭 ════ -->
-<div id="tab-setup" class="main hidden">
+<div id="main-tab-setup" class="main hidden">
   <div class="setup-panel">
     <h3>🔥 Firebase 연동 설정 가이드</h3>
     <p>아래 단계를 따라 Firebase를 설정하면 팀원 전체가 같은 URL에서 실시간으로 데이터를 공유할 수 있습니다.</p>
@@ -1773,12 +1773,13 @@ async function downloadWeeklyHWPX() {
 
 <!-- ════ 일일보고 JS ════ -->
 <script>
+
 // ── 날짜 초기화 ──
-const DAYS = ['일','월','화','수','목','금','토'];
+// DAYS (main에서 정의)
 const NOW = new Date();
-const TODAY = `${NOW.getFullYear()}. ${String(NOW.getMonth()+1).padStart(2,'0')}. ${String(NOW.getDate()).padStart(2,'0')}. (${DAYS[NOW.getDay()]})`;
+// TODAY (main에서 정의)
 document.getElementById('hdDate').textContent = TODAY;
-document.getElementById('rptDate').value = TODAY;
+
 
 // ── 탭 전환 ──
 function _dSwitchTab(t, btn) {
@@ -1791,47 +1792,7 @@ function _dSwitchTab(t, btn) {
 
 // ── 이슈 추가 ──
 let issueCount = 0;
-function addIssue(containerId, prefix) {
-  const idx = issueCount++;
-  const container = document.getElementById(containerId);
-  const div = document.createElement('div');
-  div.className = 'issue-wrap';
-  const isOrig = prefix === 'orig';
-  div.innerHTML = `
-    <div class="issue-top">
-      <div class="issue-proj">
-        <div class="lbl">사업명</div>
-        <input type="text" placeholder="예: 정부24 운영사업" class="proj-name">
-      </div>
-      ${isOrig ? '' : `<div class="issue-status"><div class="lbl">상태</div>
-        <select><option value="done">✅ 완료</option><option value="ing" selected>🔄 진행</option><option value="plan">📌 예정</option></select></div>`}
-      <button class="btn btn-danger" style="margin-bottom:1px" onclick="this.closest('.issue-wrap').remove()">✕</button>
-    </div>
-    <div class="lbl">업무 항목</div>
-    <div class="bullet-wrap" id="bw_${prefix}_${idx}">
-      <div class="bullet-row">
-        <div class="bullet-sym">-</div>
-        <div class="bullet-inp"><input type="text" placeholder="업무 내용"></div>
-        <button class="btn btn-ghost" style="padding:3px 6px" onclick="removeBulletRow(this)">✕</button>
-      </div>
-    </div>
-    <button class="btn btn-ghost" style="font-size:10px;margin-top:6px" onclick="addBulletRow('bw_${prefix}_${idx}','-')">+ 항목 추가</button>
-    ${isOrig ? `
-    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);">
-      <div class="lbl">ㆍ 세부 내용</div>
-      <div class="detail-wrap" id="dw_${idx}">
-        <div class="detail-row">
-          <div class="detail-sym">ㆍ</div>
-          <div class="detail-inp"><input type="text" placeholder="세부 업무 내용"></div>
-          <button class="btn btn-ghost" style="padding:3px 6px" onclick="removeBulletRow(this)">✕</button>
-        </div>
-      </div>
-      <button class="btn btn-ghost" style="font-size:10px;margin-top:6px" onclick="addBulletRow('dw_${idx}','ㆍ')">+ 세부항목 추가</button>
-    </div>` : ''}
-  `;
-  container.appendChild(div);
-  updateProgress();
-}
+// addIssue - main에서 정의
 
 // ── bullet 행 추가/삭제 ──
 function addBulletRow(containerId, sym) {
@@ -1846,11 +1807,7 @@ function addBulletRow(containerId, sym) {
   `;
   c.appendChild(row);
 }
-function removeBulletRow(btn) {
-  const row = btn.closest('.bullet-row, .detail-row');
-  const wrap = row.parentElement;
-  if(wrap.querySelectorAll('.bullet-row, .detail-row').length > 1) row.remove();
-}
+// removeBulletRow - main에서 정의
 
 // ── 일정/행사 행 추가 ──
 function addEventRow(tbodyId) {
@@ -1872,21 +1829,9 @@ function addBulletRow2(containerId) {
   row.innerHTML = `<div class="bullet-sym">○</div><div class="bullet-inp"><input type="text" placeholder="내용 입력"></div><button class="btn btn-danger" style="padding:3px 6px" onclick="removeRow(this)">✕</button>`;
   c.appendChild(row);
 }
-function addBulletRow(containerId, sym) {
-  const c = document.getElementById(containerId);
-  if(!c) return;
-  const row = document.createElement('div');
-  row.className = sym === 'ㆍ' ? 'detail-row' : 'bullet-row';
-  row.innerHTML = `<div class="${sym==='ㆍ'?'detail-sym':'bullet-sym'}">${sym}</div><div class="${sym==='ㆍ'?'detail-inp':'bullet-inp'}"><input type="text" placeholder="내용 입력"></div><button class="btn btn-ghost" style="padding:3px 6px" onclick="removeBulletRow(this)">✕</button>`;
-  c.appendChild(row);
-}
+// addBulletRow #2 제거
 function addManpowerRow() { addBulletRow('sumManpower','○'); }
-function removeRow(btn) {
-  const el = btn.closest('tr, .bullet-row');
-  if(!el) return;
-  const p = el.parentElement;
-  if(p.querySelectorAll('tr, .bullet-row').length > 1) el.remove();
-}
+// removeRow - main에서 정의
 function addProposalRow() {
   const tb = document.getElementById('proposalBody');
   const tr = document.createElement('tr');
@@ -1918,86 +1863,14 @@ function addBizItem() {
   box.appendChild(div);
 }
 
-// ── 인력동향 행 추가 ──
-function addBulletRow(containerId, sym) {
-  const c = document.getElementById(containerId);
-  if(!c) return;
-  const row = document.createElement('div');
-  row.className = sym==='ㆍ'?'detail-row':'bullet-row';
-  row.innerHTML = `<div class="${sym==='ㆍ'?'detail-sym':'bullet-sym'}">${sym}</div><div class="${sym==='ㆍ'?'detail-inp':'bullet-inp'}"><input type="text" placeholder="내용 입력"></div><button class="btn btn-ghost" style="padding:3px 6px" onclick="removeBulletRow(this)">✕</button>`;
-  c.appendChild(row);
-}
+// addBulletRow #3 제거
 
-// ── 진행률 ──
-function updateProgress() {
-  const inputs = document.querySelectorAll('#tab-daily input[type=text]');
-  const filled = [...inputs].filter(i=>i.value.trim()).length;
-  const pct = Math.min(100, Math.round(filled/inputs.length*100));
-  document.getElementById('prog').style.width = pct+'%';
-  const user = document.getElementById('userSel').value;
-  document.getElementById('actionStatus').textContent = user
-    ? `${user} · ${pct}% 작성완료`
-    : '작성자를 선택해주세요';
-}
+// updateProgress - main에서 정의
 document.addEventListener('input', updateProgress);
 document.getElementById('userSel').addEventListener('change', updateProgress);
 
 // ── 데이터 수집 ──
-function collectDailyData() {
-  // 요약 이슈
-  const sumIssues = [];
-  document.querySelectorAll('#sumIssueBox .issue-wrap').forEach(item=>{
-    const proj = item.querySelector('.proj-name')?.value || '';
-    const bullets = [...item.querySelectorAll('.bullet-inp input')].map(i=>i.value).filter(Boolean);
-    sumIssues.push({project: proj, items: bullets});
-  });
-  // 원본 이슈
-  const origIssues = [];
-  document.querySelectorAll('#origIssueBox .issue-wrap').forEach(item=>{
-    const proj = item.querySelector('.proj-name')?.value || '';
-    const bullets = [...item.querySelectorAll('.bullet-inp input')].map(i=>i.value).filter(Boolean);
-    const details = [...item.querySelectorAll('.detail-inp input')].map(i=>i.value).filter(Boolean);
-    origIssues.push({project: proj, items: bullets, details: details});
-  });
-  // 인력 동향
-  const manpower = [...document.querySelectorAll('#sumManpower .bullet-inp input')].map(i=>i.value).filter(Boolean);
-  // 본부 주요 행사
-  const mainEvents = [...document.querySelectorAll('#sumEventBody tr')].map(tr=>{
-    const c=tr.querySelectorAll('input');
-    return {div:c[0]?.value||'',content:c[1]?.value||'',note:c[2]?.value||''};
-  }).filter(r=>r.div||r.content);
-  // 주요 일정
-  const schedule = [...document.querySelectorAll('#sumSchedBody tr')].map(tr=>{
-    const c=tr.querySelectorAll('input');
-    return {date:c[0]?.value||'',detail:c[1]?.value||'',note:c[2]?.value||''};
-  }).filter(r=>r.date||r.detail);
-  // 제안목록
-  const proposals = [...document.querySelectorAll('#proposalBody tr')].map(tr=>{
-    const c=tr.querySelectorAll('input');
-    return {title:c[0]?.value||'',person:c[1]?.value||'',date:c[2]?.value||''};
-  }).filter(r=>r.title);
-  // 사업별 상세
-  const bizDetails = [];
-  document.querySelectorAll('#bizDetailBox .issue-wrap').forEach(item=>{
-    const nameInput = item.querySelector('input[placeholder*="사업명"]');
-    const name = nameInput?.value || '';
-    const details = [...item.querySelectorAll('.detail-inp input')].map(i=>i.value).filter(Boolean);
-    if(name||details.length) bizDetails.push({name, details});
-  });
-
-  return {
-    date: document.getElementById('rptDate').value,
-    writer: document.getElementById('userSel').value,
-    main_events: mainEvents,
-    sum_issues: sumIssues,
-    orig_issues: origIssues,
-    manpower: manpower.length ? manpower : ['특이사항 없음'],
-    schedule: schedule,
-    proposal_summary: document.getElementById('proposalSummary').value,
-    proposals: proposals,
-    biz_details: bizDetails,
-  };
-}
+// collectDailyData (통합 JS에서 정의됨)
 
 // ── 미리보기 ──
 function buildDailyPreview() {
@@ -2049,54 +1922,10 @@ function buildDailyPreview() {
 }
 
 // ── 저장 ──
-function saveDailyDraft() {
-  const user = document.getElementById('userSel').value;
-  if(!user){alert('작성자를 선택해주세요.');return;}
-  const data = collectDailyData();
-  const key = `daily_${NOW.toISOString().split('T')[0]}`;
-  let arr = JSON.parse(localStorage.getItem(key)||'[]');
-  const idx = arr.findIndex(d=>d.writer===user);
-  if(idx>=0) arr[idx]=data; else arr.push(data);
-  localStorage.setItem(key, JSON.stringify(arr));
-  const b = document.getElementById('saveBanner');
-  b.classList.add('show');
-  setTimeout(()=>b.classList.remove('show'),3000);
-}
+// saveDailyDraft (통합 JS에서 정의됨)
 
 // ── HWP 저장 ──
-async function downloadDailyHWPX() {
-  const HWPX_SERVER = 'http://localhost:5000';
-  try {
-    await fetch(HWPX_SERVER+'/health');
-  } catch(e) {
-    alert('⚠️ HWPX 서버가 실행중이지 않습니다.\n터미널에서: python hwpx_server.py');
-    return;
-  }
-  const data = collectDailyData();
-  // hwpx_server.py 의 daily 엔드포인트 형식으로 변환
-  const payload = {
-    date: data.date,
-    main_events: data.main_events,
-    sum_issues: data.sum_issues,
-    orig_issues: data.orig_issues,
-    manpower: data.manpower,
-    schedule: data.schedule,
-    proposal_summary: data.proposal_summary,
-    proposals: data.proposals,
-    biz_details: data.biz_details,
-  };
-  try {
-    const res = await fetch(HWPX_SERVER+'/generate/daily',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `일일상황보고_${data.date.replace(/[\s.()]/g,'')}.hwpx`;
-    a.click();
-  } catch(e){alert('오류: '+e.message);}
-}
+// downloadDailyHWPX (통합 JS에서 정의됨)
 
 function clearDailyAll() {
   if(confirm('모든 입력 내용을 초기화할까요?')) location.reload();
@@ -2110,14 +1939,15 @@ addBizItem();
 
 <!-- ════ 주간보고 JS ════ -->
 <script>
+
 // ── 주차 계산 ──
-const NOW = new Date();
-const day = NOW.getDay();
-const mon = new Date(NOW); mon.setDate(NOW.getDate()-(day===0?6:day-1));
-const fri = new Date(mon); fri.setDate(mon.getDate()+4);
-const fmt = d=>`${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
-const WEEK_LABEL = `${NOW.getFullYear()}년 ${fmt(mon)} ~ ${fmt(fri)}`;
-document.getElementById('hdWeek').textContent = WEEK_LABEL;
+// NOW (main에서 정의)
+
+
+
+
+// WEEK_LABEL (main에서 정의)
+
 
 // ── 탭 전환 ──
 function _wSwitchTab(t, btn) {
@@ -2129,16 +1959,8 @@ function _wSwitchTab(t, btn) {
 }
 
 // ── 공통 행 추가/삭제 ──
-function removeBulletRow(btn) {
-  const row = btn.closest('.bullet-row,.detail-row');
-  const wrap = row.parentElement;
-  if(wrap.querySelectorAll('.bullet-row,.detail-row').length > 1) row.remove();
-}
-function removeRow(btn) {
-  const tr = btn.closest('tr');
-  const tb = tr.parentElement;
-  if(tb.querySelectorAll('tr').length > 1) tr.remove();
-}
+// removeBulletRow - 이미 정의됨
+// removeRow - 이미 정의됨
 
 // ── 요약 업무진행 ──
 function addSumBizRow() {
@@ -2399,31 +2221,9 @@ function updateWeeklyProgress() {
 document.addEventListener('input', updateProgress);
 
 // ── 저장/다운로드 ──
-function saveWeeklyDraft() {
-  const data = collectWeeklyData();
-  if(!data.reporter){alert('보고자를 입력해주세요.');return;}
-  const key = `weekly_${NOW.toISOString().split('T')[0]}`;
-  localStorage.setItem(key, JSON.stringify(data));
-  const b=document.getElementById('saveBanner');
-  b.classList.add('show'); setTimeout(()=>b.classList.remove('show'),3000);
-}
+// saveWeeklyDraft (통합 JS에서 정의됨)
 
-async function downloadWeeklyHWPX() {
-  const HWPX_SERVER='http://localhost:5000';
-  try { await fetch(HWPX_SERVER+'/health'); }
-  catch(e){alert('⚠️ HWPX 서버가 실행중이지 않습니다.\n터미널에서: python hwpx_server.py');return;}
-  const data = collectWeeklyData();
-  try {
-    const res = await fetch(HWPX_SERVER+'/generate/weekly',{
-      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)
-    });
-    const blob = await res.blob();
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=`주간상황보고_${data.week.replace(/[\s~]/g,'_')}.hwpx`;
-    a.click();
-  } catch(e){alert('오류: '+e.message);}
-}
+// downloadWeeklyHWPX (통합 JS에서 정의됨)
 
 function clearWeeklyAll(){if(confirm('모든 입력을 초기화할까요?'))location.reload();}
 

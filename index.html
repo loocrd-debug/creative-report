@@ -343,7 +343,12 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
 <!-- ════ 팀원 관리 ════ -->
 <div class="page hidden" id="pg-members">
   <div class="card">
-    <div class="card-hd"><div class="card-hl"><span class="tag tac">팀원</span><span class="card-title">팀원 목록</span></div><button class="btn bp" onclick="toggleForm()">+ 팀원 추가</button></div>
+    <div class="card-hd"><div class="card-hl"><span class="tag tac">팀원</span><span class="card-title">팀원 목록</span></div>
+      <div style="display:flex;gap:7px;">
+        <button class="btn bg" onclick="resetMembers()" style="font-size:11px;color:var(--yw);border-color:rgba(245,200,66,.3);">↺ 기본값 복원</button>
+        <button class="btn bp" onclick="toggleForm()">+ 팀원 추가</button>
+      </div>
+    </div>
     <div class="card-body">
       <div class="item hidden" id="addForm" style="margin-bottom:14px;">
         <div class="g2" style="margin-bottom:8px;">
@@ -436,8 +441,18 @@ async function loadMembers(){
     if(window.fbGet){
       const saved=await window.fbGet('config/members');
       if(saved){
-        const arr=Array.isArray(saved)?saved:Object.values(saved).filter(v=>v&&v.n);
-        if(arr.length>0)members=arr;
+        // Firebase는 배열을 객체로 저장 → Object.values로 변환
+        const raw=Array.isArray(saved)?saved:Object.values(saved);
+        const arr=raw.filter(Boolean).map(m=>{
+          // 구 버전(name/role/kakao/project) → 신 버전(n/r/k/p) 호환
+          return {
+            n: m.n || m.name || '?',
+            r: m.r || m.role || '',
+            k: m.k || m.kakao || '-',
+            p: m.p || m.project || '-'
+          };
+        }).filter(m=>m.n!=='?');
+        if(arr.length>0) members=arr;
       }
     }
   }catch(e){console.log('members load err:',e);}
@@ -463,6 +478,26 @@ function renderMembers(){
 }
 
 function toggleForm(){document.getElementById('addForm').classList.toggle('hidden');}
+async function resetMembers(){
+  if(!confirm('팀원 목록을 기본값(11명)으로 복원할까요?\nFirebase에도 저장됩니다.')) return;
+  members=[
+    {n:'김아인',r:'그룹장',k:'010-0000-0001',p:'전체'},
+    {n:'김인경',r:'수석',k:'010-0000-0002',p:'정부24 운영'},
+    {n:'원정희',r:'책임',k:'010-0000-0003',p:'범정부 통합창구'},
+    {n:'이혜수',r:'책임',k:'010-0000-0004',p:'범정부 통합창구'},
+    {n:'이소현',r:'책임',k:'010-0000-0005',p:'정부 디지털지갑'},
+    {n:'조용철',r:'퍼블리셔',k:'010-0000-0006',p:'범정부 통합창구'},
+    {n:'이승연',r:'책임',k:'010-0000-0007',p:'정부24 운영'},
+    {n:'김선진',r:'책임',k:'010-0000-0008',p:'클라우드 네이티브'},
+    {n:'김리하',r:'책임',k:'010-0000-0009',p:'클라우드 네이티브'},
+    {n:'이성혁',r:'디자이너',k:'010-0000-0010',p:'정부 디지털지갑'},
+    {n:'김계현',r:'팀장',k:'010-0000-0011',p:'클라우드 네이티브'},
+  ];
+  if(window.fbSet) await window.fbSet('config/members', members);
+  renderMembers();
+  alert('✅ 기본값으로 복원되었습니다.');
+}
+
 async function addMember(){
   const n=document.getElementById('nm').value.trim();
   if(!n){alert('이름을 입력해주세요.');return;}
@@ -753,13 +788,14 @@ async function doSave(){
 }
 
 // ── HWP 저장 ──
-const HWP_SERVER='http://localhost:5000';
+
+// ── Cloud Functions URL ──
+const CLOUD_FN_URL = "https://asia-northeast1-creative-report-e38d7.cloudfunctions.net/generateHWPX";
+
 async function doHWP(){
-  try{await fetch(HWP_SERVER+'/health');}
-  catch(e){alert('⚠️ HWPX 서버가 실행중이지 않습니다.\n\n그룹장 PC에서:\n서버실행.bat 더블클릭 후 다시 시도해주세요.');return;}
   const activeTab=document.querySelector('.tab.on')?.id;
   const isWeekly=activeTab==='tb-weekly';
-  const endpoint=isWeekly?'/generate/weekly':'/generate/daily';
+  const type=isWeekly?'weekly':'daily';
   const payload=isWeekly?{
     reporter:document.getElementById('reporter').value,
     week:WEEK_LABEL,
@@ -770,17 +806,24 @@ async function doHWP(){
     collab:document.getElementById('collab')?.value||'특이사항 없음',
     proposals:[...document.querySelectorAll('#sPropB tr')].map(tr=>{const c=tr.querySelectorAll('input');return{title:c[0]?.value||'',person:c[1]?.value||'',date:c[2]?.value||''};}).filter(r=>r.title),
   }:getDailyData();
+  const btn=document.querySelector('.bhwp');
+  if(btn){btn.textContent='⏳ 생성 중...';btn.disabled=true;}
   try{
-    const res=await fetch(HWP_SERVER+endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const res=await fetch(CLOUD_FN_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type,data:payload})
+    });
     if(!res.ok)throw new Error('서버 오류 '+res.status);
     const blob=await res.blob();
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download=(isWeekly?'주간':'일일')+'상황보고_크리에이티브그룹.hwpx';
     a.click();
-  }catch(e){alert('오류: '+e.message);}
+  }catch(e){alert('오류: '+e.message+'\n\nCloud Functions가 배포되지 않았을 수 있습니다.');}
+  finally{if(btn){btn.textContent='📄 HWP 저장';btn.disabled=false;}}
 }
 
-async function dlWeeklyHWP(){ goTab('weekly'); await doHWP(); }
+async function dlWeeklyHWP(){ await doHWP(); }
 </script>
 </body>
 </html>

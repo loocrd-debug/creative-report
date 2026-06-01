@@ -21,7 +21,12 @@ function ex(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").
 
 function setLastT(tpl, text){
   const ms=[...tpl.matchAll(/<hp:t>[^<]*<\/hp:t>/g)];
-  if(!ms.length) return tpl;
+  if(!ms.length){
+    // hp:t 없으면 마지막 </hp:run> 앞에 삽입
+    const ri=tpl.lastIndexOf("</hp:run>");
+    if(ri<0) return tpl;
+    return tpl.slice(0,ri)+`<hp:t>${ex(text)}</hp:t>`+tpl.slice(ri);
+  }
   const last=ms[ms.length-1];
   return tpl.slice(0,last.index)+`<hp:t>${ex(text)}<\/hp:t>`+tpl.slice(last.index+last[0].length);
 }

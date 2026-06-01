@@ -983,19 +983,24 @@ function _repRow(xml, tblIdx, rowIdx, cells){
   const tbls=[...xml.matchAll(/<hp:tbl[ >]/g)];
   if(!tbls[tblIdx]) return xml;
   const tS=tbls[tblIdx].index;
-  const rows=[...xml.slice(tS).matchAll(/<hp:tr[ >]/g)];
+  const tblXml=xml.slice(tS);
+  const rows=[...tblXml.matchAll(/<hp:tr[ >]/g)];
   if(!rows[rowIdx]) return xml;
   const rS=tS+rows[rowIdx].index;
+  // 원본 기준 위치 미리 계산 후 뒤→앞 교체
   const subs=[...xml.slice(rS).matchAll(/<hp:subList>/g)];
-  let res=xml, off=0;
+  const reps=[];
   cells.forEach((runs,ci)=>{
     if(!subs[ci]) return;
     const cPos=rS+subs[ci].index;
-    const pS=res.indexOf("<hp:p ",cPos+off), pE=res.indexOf("</hp:p>",pS)+7;
+    const pS=xml.indexOf("<hp:p ",cPos), pE=xml.indexOf("</hp:p>",pS)+7;
     const r=runs.map(([c,t])=>`<hp:run charPrIDRef="${c}"><hp:t>${_ex(t)}</hp:t></hp:run>`).join("");
     const np=`<hp:p id="${++_pid}" paraPrIDRef="21" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">${r}</hp:p>`;
-    const prev=res.length; res=res.slice(0,pS)+np+res.slice(pE); off+=res.length-prev;
+    reps.push([pS,pE,np]);
   });
+  reps.sort((a,b)=>b[0]-a[0]);
+  let res=xml;
+  for(const [pS,pE,np] of reps) res=res.slice(0,pS)+np+res.slice(pE);
   return res;
 }
 

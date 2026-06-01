@@ -1020,40 +1020,35 @@ async function buildDailyHWPX(data){
     xml=_repRow(xml,4,1,[[["46",data.proposals[0].title||""]],[["47",data.proposals[0].person||""]],[["47",data.proposals[0].date||""]]]);
   }
 
-  // 주요일정 (하드코딩 위치)
+  // 모든 교체를 원본 위치 기준으로 한번에 뒤→앞 처리
+  const allReps=[];
+
+  // 주요일정 셀 교체
   const sc=data.schedule||[];
-  const reps=[];
   for(let i=0;i<6;i++){
     const s=sc[i]||{date:"",detail:"",note:""};
     SCHED_CELLS[i].forEach(([ps,pe],ci)=>{
       const vals=[s.date||"",s.detail||"",s.note||""];
       const txt=_ex(vals[ci]);
       const np=`<hp:p id="0" paraPrIDRef="21" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="9"><hp:t>${txt}</hp:t></hp:run></hp:p>`;
-      reps.push([ps,pe,np]);
+      allReps.push([ps,pe,np]);
     });
   }
-  reps.sort((a,b)=>b[0]-a[0]);
-  for(const [f,t,c] of reps) xml=xml.slice(0,f)+c+xml.slice(t);
 
-  // 텍스트 교체 (뒤→앞)
-  const segs=[];
-  // 공공사업
+  // 텍스트 교체
   const bizC=(data.biz_details||[]).length>0
     ?(data.biz_details||[]).map(b=>_mp("75",[["18",`    - ${b.name||""}`]])+(b.details||[]).map(d=>_mp("88",[["18",`      ㆍ${d}`]])).join("")).join("")
     :_mp("75",[["18","    - (해당 없음)"]]);
-  segs.push([POS.biz_pE,POS.sec_end,bizC]);
-  // 제안요약
-  segs.push([POS.prop_pS,POS.prop_pE,_mp("75",[["18",`    - ${data.proposal_summary||"해당 없음"}`]])]);
-  // 원본 현안
-  segs.push([POS.origS_pE,POS.origE_pS,_ip(data.orig_issues)]);
-  // 인력동향
+  allReps.push([POS.biz_pE,POS.sec_end,bizC]);
+  allReps.push([POS.prop_pS,POS.prop_pE,_mp("75",[["18",`    - ${data.proposal_summary||"해당 없음"}`]])]);
+  allReps.push([POS.origS_pE,POS.origE_pS,_ip(data.orig_issues)]);
   const man=(data.manpower&&data.manpower.length?data.manpower:["특이사항 없음"]).map(m=>_mp("12",[["9",`  ○ ${m}`]])).join("");
-  segs.push([POS.sumE_pE,POS.manE_pS,man]);
-  // 요약 현안
-  segs.push([POS.sumS_pE,POS.sumE_pS,_ip(data.sum_issues)]);
+  allReps.push([POS.sumE_pE,POS.manE_pS,man]);
+  allReps.push([POS.sumS_pE,POS.sumE_pS,_ip(data.sum_issues)]);
 
-  segs.sort((a,b)=>b[0]-a[0]);
-  for(const [f,t,c] of segs) xml=xml.slice(0,f)+c+xml.slice(t);
+  // 뒤→앞 정렬 후 한번에 적용
+  allReps.sort((a,b)=>b[0]-a[0]);
+  for(const [f,t,c] of allReps) xml=xml.slice(0,f)+c+xml.slice(t);
 
   zip.file("Contents/section0.xml",xml);
   return await zip.generateAsync({type:"uint8array",compression:"DEFLATE"});

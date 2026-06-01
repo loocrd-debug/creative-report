@@ -1109,19 +1109,12 @@ async function doHWP(){
   const btn=document.querySelector('.bhwp');
   if(btn){btn.textContent='⏳ 생성 중...';btn.disabled=true;}
   try{
-    const res=await fetch('http://localhost:5000/generateHWPX',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({data})
-    });
-    if(!res.ok) throw new Error('서버 오류: '+res.status);
-    const blob=await res.blob();
+    const buf=await _buildHWPX(data);
+    const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);
     a.download='일일상황보고_크리에이티브그룹.hwpx';
     document.body.appendChild(a);a.click();document.body.removeChild(a);
-  }catch(e){alert('오류: '+e.message+'
-
-server.py가 실행 중인지 확인해주세요.');console.error(e);}
+  }catch(e){alert('오류: '+e.message);console.error(e);}
   finally{if(btn){btn.textContent='📄 HWP 저장';btn.disabled=false;}}
 }
 

@@ -143,7 +143,7 @@ async function buildDailyHWPX(data){
   return await zip.generateAsync({type:"nodebuffer",compression:"DEFLATE"});
 }
 
-exports.generateHWPX2 = functions
+exports.generateHWPX = functions
   .region("asia-northeast1")
   .runWith({memory:"512MB",timeoutSeconds:60})
   .https.onRequest(async(req,res)=>{
@@ -165,4 +165,4 @@ exports.generateHWPX2 = functions
     }
   });
 // v-clean
-// deploy-v7
+// deploy-v8

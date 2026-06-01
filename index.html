@@ -1051,6 +1051,9 @@ async function buildDailyHWPX(data){
   for(const [f,t,c] of allReps) xml=xml.slice(0,f)+c+xml.slice(t);
 
   zip.file("Contents/section0.xml",xml);
+  // mimetype은 반드시 STORED (압축 없이)로 저장해야 한글이 읽을 수 있음
+  const mimeContent = zip.file("mimetype") ? await zip.file("mimetype").async("string") : "application/hwp+zip";
+  zip.file("mimetype", mimeContent, {compression:"STORE"});
   return await zip.generateAsync({type:"uint8array",compression:"DEFLATE"});
 }
 

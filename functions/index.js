@@ -169,7 +169,12 @@ function buildHWPX(data){
       const val = ci<vals.length ? vals[ci] : "";
       if(cell.type==="t"){
         (cell.pos||[]).forEach(([ps,pe],ti)=>{
-          reps.push([ps, pe, "<hp:t>"+ex(ti===0?val:"")+"</hp:t>"]);
+          if(ti===0){
+            reps.push([ps, pe, "<hp:t>"+ex(val)+"</hp:t>"]);
+          } else {
+            // 두 번째 이후 hp:t는 완전 삭제 (공간 차지 방지)
+            reps.push([ps, pe, ""]);
+          }
         });
       } else if(cell.type==="sc"){
         // 자기닫힘 run → hp:t 포함 run으로 교체
@@ -229,4 +234,4 @@ exports.generateHWPX = functions
   });
 // clean-v4
 // clean-v7
-// clean-v9
+// clean-v10

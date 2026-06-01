@@ -167,7 +167,7 @@ function buildHWPX(data){
   return replaceInZip(origBuf,"Contents/section0.xml",xml);
 }
 
-exports.generateHWPX = functions
+exports.generateHWPX3 = functions
   .region("asia-northeast1")
   .runWith({memory:"512MB",timeoutSeconds:60})
   .https.onRequest(async(req,res)=>{
@@ -188,4 +188,4 @@ exports.generateHWPX = functions
       res.status(500).json({error:e.message});
     }
   });
-// lineseg-v2
+// lineseg-v3-newname

@@ -1010,7 +1010,7 @@ function _replaceZip(buf,name,newXmlStr){
   const compressed=pako.deflateRaw(newData);
   const newCrc=_crc32(newData);
   const v=new DataView(buf.buffer||buf);
-  const entries=[],parts=[];
+  const entries=[],allParts=[];
   let o=0,localOff=0;
   while(o<buf.length-4){
     if(v.getUint32(o,true)!==0x04034b50)break;
@@ -1030,7 +1030,8 @@ function _replaceZip(buf,name,newXmlStr){
     hdr.set(buf.slice(o+30,o+30+nl),30);
     entries.push({fn,nl,mt:curMt,crc:curCrc,cs:curCs,us:curUs,off:localOff,flags:flags&~8});
     localOff+=hdr.length+data.length;
-    parts.push(hdr,data);
+    allParts.push(hdr);
+    allParts.push(new Uint8Array(data));
     o=dOff+cs;
   }
   const cdParts=[];
@@ -1052,7 +1053,8 @@ function _replaceZip(buf,name,newXmlStr){
   ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);
   ev.setUint16(8,entries.length,true);ev.setUint16(10,entries.length,true);
   ev.setUint32(12,cdBuf.length,true);ev.setUint32(16,localOff,true);ev.setUint16(20,0,true);
-  return _concat([..._concat(parts.map(p=>p instanceof Uint8Array?[p]:[p])),cdBuf,eocd]);
+  allParts.push(cdBuf);allParts.push(eocd);
+  return _concat(allParts);
 }
 function _concat(arrays){
   const total=arrays.reduce((s,a)=>s+a.length,0);

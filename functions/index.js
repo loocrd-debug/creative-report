@@ -36,6 +36,11 @@ function setT(xml, ps, pe, text){
 function setLastT(tpl, text){
   const ms = [...tpl.matchAll(/<hp:t>[^<]*<\/hp:t>/g)];
   if(!ms.length){
+    // 자기닫힘 run 태그: <hp:run .../> → <hp:run ...><hp:t>text</hp:t></hp:run>
+    const sc = tpl.lastIndexOf("/>");
+    if(sc>0 && tpl.slice(Math.max(0,sc-60),sc).includes("<hp:run")){
+      return tpl.slice(0,sc)+"><hp:t>"+ex(text)+"</hp:t></hp:run>"+tpl.slice(sc+2);
+    }
     const ri = tpl.lastIndexOf("</hp:run>");
     return ri<0 ? tpl : tpl.slice(0,ri)+"<hp:t>"+ex(text)+"</hp:t>"+tpl.slice(ri);
   }
@@ -215,4 +220,5 @@ exports.generateHWPX = functions
       res.status(500).json({error:e.message});
     }
   });
-// clean-v5
+// clean-v4
+// clean-v6

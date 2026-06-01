@@ -5,7 +5,7 @@ const ORIG_B64 = "UEsDBBQAAAAAAAAAIQCC8EFHEwAAABMAAAAIAAAAbWltZXR5cGVhcHBsaWNhdG
 
 // 주요일정 각 셀 첫번째 hp:t 위치
 const DATE_T = [4331, 4361]; // 날짜 hp:t 위치
-const SCHED_T = [[[20005, 20026]], [[22350, 22371], [23153, 23170], [24296, 24312]], [[25103, 25124], [25907, 25944], [26729, 26750]], [[27541, 27562], [28345, 28392], [29176, 29192]], [[29983, 30004], [30787, 30817], [31602, 31618]], [[32409, 32426]]];
+const SCHED_T = [[[[20005, 20026]], [], []], [[[22350, 22371]], [[23153, 23170], [23475, 23508]], [[24296, 24312]]], [[[25103, 25124]], [[25907, 25944]], [[26729, 26750]]], [[[27541, 27562]], [[28345, 28392]], [[29176, 29192]]], [[[29983, 30004]], [[30787, 30817]], [[31602, 31618]]], [[[32409, 32426]], [], []]];
 
 // 각 섹션 범위
 const POS = {
@@ -153,13 +153,17 @@ function buildHWPX(data){
     reps.push([DATE_T[0], DATE_T[1], "<hp:t>("+ex(data.date)+")</hp:t>"]);
   }
 
-  // 1. 주요일정 (hp:t 텍스트만 교체)
+  // 1. 주요일정 (각 셀의 모든 hp:t 교체)
   const sc = data.schedule||[];
   for(let i=0;i<6;i++){
     const s = sc[i]||{date:"",detail:"",note:""};
     const vals = [s.date||"", s.detail||"", s.note||""];
-    (SCHED_T[i]||[]).forEach(([ps,pe],ci)=>{
-      reps.push([ps,pe,"<hp:t>"+ex(vals[ci])+"</hp:t>"]);
+    (SCHED_T[i]||[]).forEach((cellTs, ci)=>{
+      (cellTs||[]).forEach(([ps,pe], ti)=>{
+        // 첫번째 hp:t에만 값, 나머지는 빈칸
+        const val = ti===0 ? vals[ci] : "";
+        reps.push([ps, pe, "<hp:t>"+ex(val)+"</hp:t>"]);
+      });
     });
   }
 
@@ -211,4 +215,4 @@ exports.generateHWPX = functions
       res.status(500).json({error:e.message});
     }
   });
-// clean-v3
+// clean-v4

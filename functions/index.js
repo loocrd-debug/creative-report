@@ -5,7 +5,7 @@ const ORIG_B64 = "UEsDBBQAAAAAAAAAIQCC8EFHEwAAABMAAAAIAAAAbWltZXR5cGVhcHBsaWNhdG
 
 // 주요일정 각 셀 첫번째 hp:t 위치
 const DATE_T = [4331, 4361]; // 날짜 hp:t 위치
-const SCHED_T = [[[[20005, 20026]], [], []], [[[22350, 22371]], [[23153, 23170], [23475, 23508]], [[24296, 24312]]], [[[25103, 25124]], [[25907, 25944]], [[26729, 26750]]], [[[27541, 27562]], [[28345, 28392]], [[29176, 29192]]], [[[29983, 30004]], [[30787, 30817]], [[31602, 31618]]], [[[32409, 32426]], [], []]];
+const CELL_INFO = [[{"type": "t", "pos": [[20005, 20026]]}, {"type": "sc", "s": 20775, "e": 20800, "r": "<hp:run charPrIDRef=\"6\"/>"}, {"type": "sc", "s": 21542, "e": 21568, "r": "<hp:run charPrIDRef=\"68\"/>"}], [{"type": "t", "pos": [[22350, 22371]]}, {"type": "t", "pos": [[23153, 23170], [23475, 23508]]}, {"type": "t", "pos": [[24296, 24312]]}], [{"type": "t", "pos": [[25103, 25124]]}, {"type": "t", "pos": [[25907, 25944]]}, {"type": "t", "pos": [[26729, 26750]]}], [{"type": "t", "pos": [[27541, 27562]]}, {"type": "t", "pos": [[28345, 28392]]}, {"type": "t", "pos": [[29176, 29192]]}], [{"type": "t", "pos": [[29983, 30004]]}, {"type": "t", "pos": [[30787, 30817]]}, {"type": "t", "pos": [[31602, 31618]]}], [{"type": "t", "pos": [[32409, 32426]]}, {"type": "sc", "s": 33175, "e": 33201, "r": "<hp:run charPrIDRef=\"67\"/>"}, {"type": "sc", "s": 33943, "e": 33969, "r": "<hp:run charPrIDRef=\"69\"/>"}]];
 
 // 각 섹션 범위
 const POS = {
@@ -160,17 +160,22 @@ function buildHWPX(data){
     reps.push([DATE_T[0], DATE_T[1], "<hp:t>("+ex(data.date)+")</hp:t>"]);
   }
 
-  // 1. 주요일정 (각 셀의 모든 hp:t 교체)
+  // 1. 주요일정 (hp:t 및 자기닫힘 run 모두 처리)
   const sc = data.schedule||[];
   for(let i=0;i<6;i++){
     const s = sc[i]||{date:"",detail:"",note:""};
     const vals = [s.date||"", s.detail||"", s.note||""];
-    (SCHED_T[i]||[]).forEach((cellTs, ci)=>{
-      (cellTs||[]).forEach(([ps,pe], ti)=>{
-        // 첫번째 hp:t에만 값, 나머지는 빈칸
-        const val = ti===0 ? vals[ci] : "";
-        reps.push([ps, pe, "<hp:t>"+ex(val)+"</hp:t>"]);
-      });
+    (CELL_INFO[i]||[]).forEach((cell, ci)=>{
+      const val = ci<vals.length ? vals[ci] : "";
+      if(cell.type==="t"){
+        (cell.pos||[]).forEach(([ps,pe],ti)=>{
+          reps.push([ps, pe, "<hp:t>"+ex(ti===0?val:"")+"</hp:t>"]);
+        });
+      } else if(cell.type==="sc"){
+        // 자기닫힘 run → hp:t 포함 run으로 교체
+        const newRun = cell.r.slice(0,-2)+"><hp:t>"+ex(val)+"</hp:t></hp:run>";
+        reps.push([cell.s, cell.e, newRun]);
+      }
     });
   }
 
@@ -223,4 +228,5 @@ exports.generateHWPX = functions
     }
   });
 // clean-v4
-// clean-v8
+// clean-v7
+// clean-v9

@@ -161,7 +161,10 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
   <div class="card" style="margin-bottom:14px;">
     <div class="card-hd">
       <div class="card-hl"><span class="tag tac">실시간</span><span class="card-title">오늘 작성 현황</span></div>
-      <button class="btn bg" onclick="loadLive()">↻ 새로고침</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn bp" onclick="loadMerged()" style="font-size:11px;">📋 취합 보기</button>
+        <button class="btn bg" onclick="loadLive()">↻ 새로고침</button>
+      </div>
     </div>
     <div class="chips" id="liveBox"><span style="color:var(--t3);font-size:11px;">로딩 중...</span></div>
   </div>
@@ -569,6 +572,50 @@ async function delMember(i){
 }
 
 // ── 실시간 현황 ──
+async function loadMerged(){
+  const btn = document.querySelector('[onclick="loadMerged()"]');
+  if(btn){ btn.textContent='⏳ 취합 중...'; btn.disabled=true; }
+  try{
+    const allData = await window.fbGet(`reports/daily/${TKEY}`);
+    if(!allData || Object.keys(allData).length === 0){
+      alert('오늘 저장된 데이터가 없습니다.');
+      return;
+    }
+    const entries = Object.values(allData).filter(Boolean);
+    const writers = entries.map(e=>e.writer||'').filter(Boolean);
+    
+    if(!confirm(`${writers.join(', ')} (총 ${entries.length}명)의 데이터를 취합하여 화면에 로드합니다.\n현재 작성 중인 내용이 교체됩니다.`)) return;
+
+    // 취합 (중복 제거 없이 그대로 합치기)
+    const merged = {
+      date: TSTR,
+      writer: '',
+      main_events: entries.flatMap(e=>e.main_events||[]).filter(e=>e.content),
+      orig_issues: entries.flatMap(e=>e.orig_issues||[]).filter(i=>i.project),
+      sum_issues: entries.flatMap(e=>e.sum_issues||[]).filter(i=>i.project),
+      manpower: [...new Set(entries.flatMap(e=>e.manpower||[]).filter(m=>m&&m!=='특이사항 없음'))],
+      schedule: entries.flatMap(e=>e.schedule||[]).filter(s=>s.date||s.detail)
+        .sort((a,b)=>(a.date||'').localeCompare(b.date||'')),
+      biz_details: entries.flatMap(e=>e.biz_details||[]).filter(b=>b.name),
+      proposals: entries.flatMap(e=>e.proposals||[]).filter(p=>p.title),
+      proposal_summary: entries.find(e=>e.proposal_summary)?.proposal_summary||'',
+    };
+    if(merged.manpower.length === 0) merged.manpower = ['특이사항 없음'];
+
+    // 화면에 로드
+    loadSaved(merged);
+
+    // 상단에 취합 알림 배너 표시
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--ac);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+    banner.textContent = `✅ ${writers.join(', ')} 데이터 취합 완료 — 확인 후 HWP 저장하세요`;
+    document.body.appendChild(banner);
+    setTimeout(()=>banner.remove(), 4000);
+
+  }catch(e){ alert('오류: '+e.message); console.error(e); }
+  finally{ if(btn){ btn.textContent='📋 취합 보기'; btn.disabled=false; } }
+}
+
 async function loadYesterday(){
   const user=document.getElementById('userSel').value;
   if(!user){alert('먼저 작성자를 선택해주세요.');return;}
@@ -1374,10 +1421,17 @@ async function mergeAllData(){
 
 async function doHWP(){
   const btn = document.querySelector('.bhwp');
-  if(btn){ btn.textContent='⏳ 취합 중...'; btn.disabled=true; }
+  if(btn){ btn.textContent='⏳ 생성 중...'; btn.disabled=true; }
   try{
-    // 전체 팀원 데이터 취합
-    const data = await mergeAllData();
+    // Firebase에서 현재 선택된 작성자 or 화면 데이터 사용
+    const user = document.getElementById('userSel').value;
+    const key = user.replace(/[\s.()]/g,'_');
+    let data = null;
+    if(user && window.fbGet){
+      const saved = await window.fbGet(`reports/daily/${TKEY}/${key}`);
+      if(saved) data = saved;
+    }
+    if(!data) data = getDailyData();
     
     const res = await fetch(CLOUD_FN_URL, {
       method:'POST',

@@ -318,6 +318,10 @@ function buildWeeklyHWPX(data){
     return nameRow+(b.details||[]).map(d=>setLastT(TPL_W.bizDetail,d)).join("");
   }).join("");
   reps.push([POS_W.biz_s,POS_W.biz_e,bizXml]);
+  // 별첨 섹션: 없으면 제거 (23319~113003), 있으면 유지
+  if(!data.appendix||data.appendix.length===0){
+    reps.push([23319,113003,""]); // 별첨 섹션 전체 제거
+  }
   reps.sort((a,b)=>b[0]-a[0]);
   for(const [f,t,c] of reps) xml=xml.slice(0,f)+c+xml.slice(t);
   return replaceZip(origBuf,"Contents/section0.xml",xml);

@@ -721,14 +721,15 @@ ${dataSummary}
 간결하고 공문서 형식으로 작성해주세요.`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch(CLOUD_FN_URL.replace('generateHWPX','generateWeeklyAI'),{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({prompt})
     });
+    if(!res.ok) throw new Error('서버 오류: '+res.status);
     const data=await res.json();
     think.style.display='none';
-    const text=data.content?.find(c=>c.type==='text')?.text||'생성에 실패했습니다.';
+    const text=data.text||'생성에 실패했습니다.';
     // 타이핑 효과
     let i=0;
     const timer=setInterval(()=>{
@@ -796,41 +797,44 @@ function addIssue(cid,pref){
       <button class="btn bd" onclick="this.closest('.item').remove()">✕</button>
     </div>
     <div class="lbl">항목</div>
-    <div id="il${idx}">
-      <div class="brow" style="flex-direction:column;align-items:stretch;gap:3px;">
-        <div style="display:flex;gap:7px;align-items:center;">
-          <div class="bsym bgr">-</div>
-          <div class="binp"><input type="text" class="iitem" placeholder="업무 내용"></div>
-          <button class="btn bg" style="padding:2px 5px" onclick="delBR(this)">✕</button>
-        </div>
-        ${isO?`<div style="display:flex;gap:7px;align-items:center;padding-left:18px;">
-          <div class="bsym" style="color:var(--t3);font-size:10px;">ㆍ</div>
-          <div class="binp"><input type="text" class="idetail" placeholder="세부 내용 (선택)" style="font-size:10px;color:var(--t2);"></div>
-        </div>`:''}
-      </div>
-    </div>
+    <div id="il${idx}"></div>
     <button class="btn bg" style="font-size:10px;margin-top:5px;" onclick="addItemRow('il${idx}',${isO})">+ 항목 추가</button>`;
   box.appendChild(div);
+  setTimeout(()=>addItemRow('il'+idx, isO), 0);
 }
 
 // ── 항목+세부 쌍 추가 ──
+function makeDetailRow(){
+  const d=document.createElement('div');
+  d.style.cssText='display:flex;gap:7px;align-items:center;padding-left:18px;margin-top:2px;';
+  d.innerHTML=`
+    <div class="bsym" style="color:var(--t3);font-size:10px;">ㆍ</div>
+    <div class="binp"><input type="text" class="idetail" placeholder="세부 내용" style="font-size:10px;color:var(--t2);"></div>
+    <button class="btn bd" style="padding:1px 4px;font-size:10px;" onclick="this.closest('[style*=padding-left]').remove()">✕</button>`;
+  return d;
+}
 function addItemRow(containerId, withDetail){
   const box = document.getElementById(containerId);
   if(!box) return;
-  const row = document.createElement('div');
-  row.className = 'brow';
-  row.style.cssText = 'flex-direction:column;align-items:stretch;gap:3px;';
-  row.innerHTML = `
+  const wrap = document.createElement('div');
+  wrap.className = 'irow';
+  wrap.style.cssText = 'border:1px solid var(--bd);border-radius:5px;padding:5px 6px;margin-bottom:4px;';
+  wrap.innerHTML = `
     <div style="display:flex;gap:7px;align-items:center;">
       <div class="bsym bgr">-</div>
       <div class="binp"><input type="text" class="iitem" placeholder="업무 내용"></div>
-      <button class="btn bg" style="padding:2px 5px" onclick="delBR(this)">✕</button>
-    </div>
-    ${withDetail?`<div style="display:flex;gap:7px;align-items:center;padding-left:18px;">
-      <div class="bsym" style="color:var(--t3);font-size:10px;">ㆍ</div>
-      <div class="binp"><input type="text" class="idetail" placeholder="세부 내용 (선택)" style="font-size:10px;color:var(--t2);"></div>
-    </div>`:''}`;
-  box.appendChild(row);
+      <button class="btn bd" style="padding:2px 5px" onclick="this.closest('.irow').remove()">✕</button>
+    </div>`;
+  if(withDetail){
+    wrap.appendChild(makeDetailRow());
+    const addDetBtn=document.createElement('button');
+    addDetBtn.className='btn bg';
+    addDetBtn.style.cssText='font-size:9px;margin-top:3px;padding:2px 6px;margin-left:18px;';
+    addDetBtn.textContent='+ 세부 추가';
+    addDetBtn.onclick=function(){ this.before(makeDetailRow()); };
+    wrap.appendChild(addDetBtn);
+  }
+  box.appendChild(wrap);
 }
 
 // ── 사업별 상세 ──
@@ -935,19 +939,23 @@ function loadSaved(saved){
         });
         // 세부 내용 복원
         // 항목+세부 쌍 복원
-        const ilDiv2 = last.querySelector('[id^="il"]');
-        if(ilDiv2){
-          const rows=[...ilDiv2.querySelectorAll('.brow')];
+        setTimeout(()=>{
+          const ilDiv2 = last.querySelector('[id^="il"]');
+          if(!ilDiv2) return;
+          // 기존 자동 추가된 첫 행 제거 후 데이터로 채우기
+          ilDiv2.innerHTML='';
           (iss.items||[]).forEach((it,i2)=>{
-            let row=rows[i2];
-            if(!row){ addItemRow(ilDiv2.id,true); row=[...ilDiv2.querySelectorAll('.brow')][i2]; }
+            addItemRow(ilDiv2.id, true);
+            const rows=[...ilDiv2.querySelectorAll('.irow')];
+            const row=rows[rows.length-1];
             if(!row) return;
             const itemInp=row.querySelector('.iitem');
             const detInp=row.querySelector('.idetail');
             if(itemInp) itemInp.value=it;
             if(detInp && iss.details && iss.details[i2]) detInp.value=iss.details[i2];
           });
-        }
+          if(iss.items?.length===0) addItemRow(ilDiv2.id, true);
+        }, 50);
       });
     } else { addIssue('origI','orig'); }
   }

@@ -58,17 +58,19 @@ function makeIssues(issues, t14, t89){
     const p = ts.length>=2
       ? t14.slice(0,ts[ts.length-1].index)+"<hp:t>"+ex(iss.project||"")+"</hp:t>"+t14.slice(ts[ts.length-1].index+ts[ts.length-1][0].length)
       : setLastT(t14,"  ○ "+(iss.project||""));
-    // 항목 (t89 템플릿)
-    const items = (iss.items||[]).map(it=>{
+    // 항목+세부 쌍으로 출력 (항목[i] 다음에 세부[i])
+    const {t88} = TPL;
+    const itemsXml = (iss.items||[]).map((it,i)=>{
       const ts2=[...t89.matchAll(/<hp:t>[^<]*<\/hp:t>/g)];
-      return ts2.length>=2
+      const itemLine = ts2.length>=2
         ? t89.slice(0,ts2[ts2.length-1].index)+"<hp:t>"+ex(it)+"</hp:t>"+t89.slice(ts2[ts2.length-1].index+ts2[ts2.length-1][0].length)
         : setLastT(t89,it);
+      // 해당 항목의 세부가 있으면 바로 아래에 출력
+      const det = iss.details && iss.details[i];
+      const detLine = det ? setLastT(t88,"      ㆍ"+det) : "";
+      return itemLine + detLine;
     }).join("");
-    // 세부 (t88 템플릿 - 세부 내용)
-    const {t88} = TPL;
-    const details = (iss.details||[]).map(det=>setLastT(t88,"      ㆍ"+det)).join("");
-    return p+items+details;
+    return p+itemsXml;
   }).join("");
 }
 
@@ -238,4 +240,5 @@ exports.generateHWPX = functions
   });
 // clean-v4
 // clean-v7
-// clean-v13
+// clean-v12
+// clean-v14

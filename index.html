@@ -296,6 +296,25 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
     <div class="card-body"><div class="brow"><div class="bsym bgr">-</div><div class="binp"><input type="text" id="collab" placeholder="특이사항 없음"></div></div></div>
   </div>
 
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-hl"><span class="tag tao">별첨</span><span class="card-title">별첨 항목</span></div>
+      <button class="btn bg" style="font-size:11px;" onclick="addAppendix()">+ 별첨 추가</button>
+    </div>
+    <div class="card-body">
+      <p style="color:var(--t3);font-size:11px;margin-bottom:10px;">※ HWP 파일에 별첨으로 포함됩니다. 삭제 시 해당 항목이 빠집니다.</p>
+      <div id="appendixB">
+        <div class="appendix-row" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;padding:8px;background:var(--s2);border-radius:6px;border:1px solid var(--bd);">
+          <div style="flex:1;">
+            <div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:4px;">26년도 크리에이티브그룹 인력 운영 현황</div>
+            <textarea placeholder="인력 운영 현황 내용 입력&#10;예: 정부24 운영(1~12월) : 김인경 수석(기획), 이승연 책임(홍보)..." style="width:100%;min-height:80px;font-size:11px;line-height:1.6;background:var(--bg);border:1px solid var(--bd);color:var(--t1);border-radius:4px;padding:6px 8px;resize:vertical;" class="appendix-content"></textarea>
+          </div>
+          <button class="btn bd" style="padding:2px 5px;flex-shrink:0;margin-top:18px;" onclick="this.closest('.appendix-row').remove()">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 원본보고 -->
   <div class="sep" style="margin-top:28px;"><div class="sep-badge sep-yw">원본보고 입력</div><div class="sep-line"></div><div class="sep-desc">전체 내용 상세 기술</div></div>
 
@@ -627,21 +646,42 @@ async function renderWeekDays(){
         if(!e) return;
         inner+=`<div style="background:var(--bg2);border-radius:6px;padding:8px 10px;margin-bottom:6px;">`;
         inner+=`<div style="font-size:12px;font-weight:700;color:var(--t1);margin-bottom:4px;">👤 ${e.writer||''}</div>`;
-        const issues=e.sum_issues||e.orig_issues||[];
+        // 현안이슈 (orig 우선)
+        const issues=e.orig_issues||e.sum_issues||[];
         if(issues.length>0){
-          inner+=`<div style="font-size:11px;color:var(--t3);margin-bottom:2px;">■ 현안 이슈</div>`;
+          inner+=`<div style="font-size:11px;color:var(--ac);font-weight:600;margin:4px 0 2px;">■ 현안 이슈</div>`;
           issues.forEach(iss=>{
-            if(iss&&iss.project) inner+=`<div style="color:var(--t2);font-size:11px;margin-left:8px;">○ ${iss.project}</div>`;
-            (iss&&iss.items||[]).forEach(it=>{ inner+=`<div style="color:var(--t3);font-size:11px;margin-left:18px;">- ${it}</div>`; });
+            if(!iss||!iss.project) return;
+            inner+=`<div style="color:var(--t1);font-size:11px;margin-left:4px;font-weight:600;">○ ${iss.project}</div>`;
+            (iss.items||[]).forEach(it=>{ inner+=`<div style="color:var(--t2);font-size:11px;margin-left:12px;">- ${it}</div>`; });
+            (iss.details||[]).forEach(det=>{ if(det) inner+=`<div style="color:var(--t3);font-size:10px;margin-left:20px;">ㆍ${det}</div>`; });
           });
         }
-        if(e.manpower&&e.manpower.length>0){
-          inner+=`<div style="font-size:11px;color:var(--t3);margin-top:4px;margin-bottom:2px;">■ 인력동향</div>`;
-          e.manpower.forEach(m=>{ inner+=`<div style="color:var(--t2);font-size:11px;margin-left:8px;">- ${m}</div>`; });
+        // 인력동향
+        const man=(e.manpower||[]).filter(Boolean);
+        if(man.length>0 && !(man.length===1&&man[0]==='특이사항 없음')){
+          inner+=`<div style="font-size:11px;color:var(--ac);font-weight:600;margin:4px 0 2px;">■ 인력동향</div>`;
+          man.forEach(m=>{ inner+=`<div style="color:var(--t2);font-size:11px;margin-left:4px;">- ${m}</div>`; });
         }
-        if(e.proposals&&e.proposals.length>0){
-          inner+=`<div style="font-size:11px;color:var(--t3);margin-top:4px;margin-bottom:2px;">■ 제안발표</div>`;
-          e.proposals.forEach(p=>{ inner+=`<div style="color:var(--t2);font-size:11px;margin-left:8px;">${p.title||''} (${p.person||''} / ${p.date||''})</div>`; });
+        // 주요일정
+        const sched=(e.schedule||[]).filter(s=>s.date||s.detail);
+        if(sched.length>0){
+          inner+=`<div style="font-size:11px;color:var(--ac);font-weight:600;margin:4px 0 2px;">■ 주요일정</div>`;
+          sched.forEach(s=>{ inner+=`<div style="color:var(--t2);font-size:11px;margin-left:4px;">${s.date||''} ${s.detail||''} ${s.note?'('+s.note+')':''}</div>`; });
+        }
+        // 공공사업
+        const biz=(e.biz_details||[]).filter(b=>b.name);
+        if(biz.length>0){
+          inner+=`<div style="font-size:11px;color:var(--ac);font-weight:600;margin:4px 0 2px;">■ 공공사업</div>`;
+          biz.forEach(b=>{
+            inner+=`<div style="color:var(--t1);font-size:11px;margin-left:4px;">▸ ${b.name}</div>`;
+            (b.details||[]).forEach(d=>{ inner+=`<div style="color:var(--t3);font-size:10px;margin-left:12px;">ㆍ${d}</div>`; });
+          });
+        }
+        // 제안발표
+        if(e.proposals&&e.proposals.filter(p=>p.title).length>0){
+          inner+=`<div style="font-size:11px;color:var(--ac);font-weight:600;margin:4px 0 2px;">■ 제안발표</div>`;
+          e.proposals.filter(p=>p.title).forEach(p=>{ inner+=`<div style="color:var(--t2);font-size:11px;margin-left:4px;">${p.title||''} (${p.person||''} / ${p.date||''})</div>`; });
         }
         inner+=`</div>`;
       });
@@ -1088,6 +1128,8 @@ function togglePreview(){
 function updatePreview(){
   const panel=document.getElementById('previewPanel');
   if(panel.style.display==='none') return;
+  const activeTab=document.querySelector('.tab.on')?.id;
+  if(activeTab==='tb-weekly'){ updateWeeklyPreview(); return; }
   const d=getDailyData();
   const cont=document.getElementById('previewContent');
   if(!cont) return;
@@ -1178,6 +1220,55 @@ function updatePreview(){
   cont.innerHTML=h||'<div style="color:var(--t3);font-size:11px;">작성된 내용이 없습니다.</div>';
 }
 
+function updateWeeklyPreview(){
+  const cont=document.getElementById('previewContent');
+  if(!cont) return;
+  const d=getWeeklyData();
+  let h='';
+  h+=`<div style="background:var(--s2);border-radius:6px;padding:8px 10px;margin-bottom:8px;border-left:3px solid var(--yw);">`;
+  h+=`<div style="font-weight:700;color:var(--t1);">□ 크리에이티브그룹 주간상황(요약)보고</div>`;
+  h+=`<div style="color:var(--t3);font-size:10px;margin-top:2px;">보고자: ${d.reporter||'미입력'}  기간: ${d.weekRange||''}</div>`;
+  h+=`</div>`;
+
+  // 현안이슈
+  const issues=(d.sum_issues||[]).filter(s=>s);
+  if(issues.length>0){
+    h+=`<div style="font-weight:600;color:var(--ac);margin:6px 0 3px;font-size:11px;">■ 현안 및 이슈사항</div>`;
+    h+=`<div style="color:var(--t2);font-size:10px;padding-left:4px;margin-bottom:2px;">○ 업무 진행 사항</div>`;
+    issues.forEach(iss=>{ h+=`<div style="color:var(--t2);font-size:10px;padding-left:12px;">- ${iss}</div>`; });
+  }
+
+  // 제안
+  const props=(d.proposals||[]).filter(p=>p.title);
+  if(props.length>0){
+    h+=`<div style="color:var(--t2);font-size:10px;padding-left:4px;margin-top:4px;">- [제안목록]</div>`;
+    props.forEach(p=>{ h+=`<div style="color:var(--t3);font-size:10px;padding-left:12px;">${p.title} / ${p.person} / ${p.date}</div>`; });
+  }
+
+  // 협업
+  h+=`<div style="font-weight:600;color:var(--ac);margin:6px 0 3px;font-size:11px;">■ 협업 요청사항</div>`;
+  h+=`<div style="color:var(--t2);font-size:10px;padding-left:4px;">${d.collab||'- 특이사항 없음'}</div>`;
+
+  // 분야별 진척
+  const biz=(d.biz_details||[]).filter(b=>b.name);
+  if(biz.length>0){
+    h+=`<div style="font-weight:600;color:var(--yw);margin:8px 0 3px;font-size:11px;">■ 분야별 진척내용</div>`;
+    biz.forEach(b=>{
+      h+=`<div style="color:var(--t1);font-size:11px;margin-left:4px;">- ${b.name}</div>`;
+      (b.details||[]).forEach(d=>{ h+=`<div style="color:var(--t2);font-size:10px;margin-left:12px;">· ${d}</div>`; });
+    });
+  }
+
+  // 별첨
+  const appx=(d.appendix||[]);
+  if(appx.length>0){
+    h+=`<div style="font-weight:600;color:var(--t2);margin:8px 0 3px;font-size:11px;">■ 별첨</div>`;
+    appx.forEach(a=>{ h+=`<div style="color:var(--t2);font-size:10px;padding-left:4px;">- ${a.title}</div>`; });
+  }
+
+  cont.innerHTML=h||'<div style="color:var(--t3);">작성된 내용이 없습니다.</div>';
+}
+
 function doHWPAuto(){
   const tab = document.querySelector('.tab.on')?.id;
   if(tab === 'tb-weekly') dlWeeklyHWP();
@@ -1214,6 +1305,20 @@ async function doHWP(){
   finally{ if(btn){ btn.textContent='📄 HWP 저장'; btn.disabled=false; } }
 }
 
+function addAppendix(){
+  const box=document.getElementById('appendixB');
+  const row=document.createElement('div');
+  row.className='appendix-row';
+  row.style.cssText='display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;padding:8px;background:var(--s2);border-radius:6px;border:1px solid var(--bd);';
+  row.innerHTML=`
+    <div style="flex:1;">
+      <input type="text" placeholder="별첨 제목" style="width:100%;margin-bottom:4px;font-size:11px;font-weight:600;" class="appendix-title">
+      <textarea placeholder="내용 입력..." style="width:100%;min-height:60px;font-size:11px;line-height:1.6;background:var(--bg);border:1px solid var(--bd);color:var(--t1);border-radius:4px;padding:6px 8px;resize:vertical;" class="appendix-content"></textarea>
+    </div>
+    <button class="btn bd" style="padding:2px 5px;flex-shrink:0;margin-top:2px;" onclick="this.closest('.appendix-row').remove()">✕</button>`;
+  box.appendChild(row);
+}
+
 function getWeeklyData(){
   return {
     reporter: document.getElementById('reporter')?.value||'',
@@ -1237,6 +1342,10 @@ function getWeeklyData(){
       return {date:c[0]?.value||'',detail:c[1]?.value||'',note:c[2]?.value||''};
     }).filter(r=>r.date||r.detail),
     collab: document.getElementById('wkCollab')?.value||'',
+    appendix: [...document.querySelectorAll('#appendixB .appendix-row')].map(row=>({
+      title: row.querySelector('.appendix-title')?.value || '26년도 크리에이티브그룹 인력 운영 현황',
+      content: row.querySelector('.appendix-content')?.value||''
+    })).filter(a=>a.content),
     savedAt: Date.now()
   };
 }

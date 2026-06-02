@@ -584,7 +584,7 @@ async function loadMerged(){
     const entries = Object.values(allData).filter(Boolean);
     const writers = entries.map(e=>e.writer||'').filter(Boolean);
     
-    if(!confirm(`${writers.join(', ')} (총 ${entries.length}명)의 데이터를 취합하여 화면에 로드합니다.\n현재 작성 중인 내용이 교체됩니다.`)) return;
+    // confirm 없이 바로 진행
 
     // 취합 (중복 제거 없이 그대로 합치기)
     const merged = {
@@ -1126,17 +1126,30 @@ function getDailyData(){
     const pnm=item.querySelector('.pnm')?.value||'';
     const ilDiv=item.querySelector('[id^="il"]');
     if(!ilDiv) return {project:pnm, items:[], details:[]};
-    // 각 행에서 항목(.iitem)과 세부(.idetail) 쌍으로 수집
-    const rows=[...ilDiv.querySelectorAll('.brow')];
+    // .irow 기준으로 항목+세부 쌍 수집
+    const rows=[...ilDiv.querySelectorAll('.irow')];
     const items=[], details=[];
-    rows.forEach(row=>{
-      const itemInp=row.querySelector('.iitem');
-      const detInp=row.querySelector('.idetail');
-      if(itemInp?.value) {
-        items.push(itemInp.value);
-        details.push(detInp?.value||'');
-      }
-    });
+    if(rows.length > 0){
+      rows.forEach(row=>{
+        const itemInp=row.querySelector('.iitem');
+        if(itemInp?.value){
+          items.push(itemInp.value);
+          // 세부: 해당 row 안의 모든 .idetail 값 합치기
+          const dets=[...row.querySelectorAll('.idetail')].map(i=>i.value).filter(Boolean);
+          details.push(dets.join(', '));
+        }
+      });
+    } else {
+      // 이전 방식 fallback (.brow)
+      [...ilDiv.querySelectorAll('.brow')].forEach(row=>{
+        const itemInp=row.querySelector('.iitem');
+        const detInp=row.querySelector('.idetail');
+        if(itemInp?.value){
+          items.push(itemInp.value);
+          details.push(detInp?.value||'');
+        }
+      });
+    }
     // 새 구조 없으면 기존 방식 fallback
     if(items.length===0){
       const allInp=[...ilDiv.querySelectorAll('input')].map(i=>i.value).filter(Boolean);

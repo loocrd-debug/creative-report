@@ -543,7 +543,7 @@ async function editMember(i){
   const hidden=form.classList.contains('hidden');
   form.classList.toggle('hidden', !hidden);
 }
-function saveMember(i){
+async function saveMember(i){
   members[i]={
     n: document.getElementById('men'+i).value.trim(),
     r: document.getElementById('mer'+i).value.trim(),
@@ -554,7 +554,7 @@ function saveMember(i){
   renderMembers();
   rebuildSel();
 }
-function delMember(i){
+async function delMember(i){
   if(!confirm(`${members[i].n} 팀원을 삭제할까요?`))return;
   members.splice(i,1);
   if(window.fbSet)await window.fbSet('config/members',members);

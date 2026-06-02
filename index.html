@@ -1279,20 +1279,105 @@ function doHWPAuto(){
   else doHWP();
 }
 
+// 전체 팀원 데이터 취합 함수
+async function mergeAllData(){
+  const allData = await window.fbGet(`reports/daily/${TKEY}`);
+  if(!allData) return getDailyData(); // fallback: 화면 데이터
+  const entries = Object.values(allData).filter(Boolean);
+  if(entries.length === 0) return getDailyData();
+
+  // 날짜는 첫 번째 항목에서
+  const date = entries[0].date || TSTR;
+
+  // 현안이슈: 사업명 기준으로 합치기
+  const issueMap = {};
+  entries.forEach(e => {
+    (e.orig_issues||[]).forEach(iss => {
+      if(!iss.project) return;
+      const key = iss.project.trim();
+      if(!issueMap[key]) issueMap[key] = {project: key, items: [], details: []};
+      // 중복 항목 제거하며 합치기
+      (iss.items||[]).forEach(it => { if(it && !issueMap[key].items.includes(it)) issueMap[key].items.push(it); });
+      (iss.details||[]).forEach(det => { if(det && !issueMap[key].details.includes(det)) issueMap[key].details.push(det); });
+    });
+  });
+  const orig_issues = Object.values(issueMap);
+
+  // 요약 현안이슈도 동일하게
+  const sumMap = {};
+  entries.forEach(e => {
+    (e.sum_issues||[]).forEach(iss => {
+      if(!iss.project) return;
+      const key = iss.project.trim();
+      if(!sumMap[key]) sumMap[key] = {project: key, items: [], details: []};
+      (iss.items||[]).forEach(it => { if(it && !sumMap[key].items.includes(it)) sumMap[key].items.push(it); });
+      (iss.details||[]).forEach(det => { if(det && !sumMap[key].details.includes(det)) sumMap[key].details.push(det); });
+    });
+  });
+  const sum_issues = Object.values(sumMap);
+
+  // 인력동향: 합치기 (특이사항 없음 제외)
+  const manSet = new Set();
+  entries.forEach(e => {
+    (e.manpower||[]).forEach(m => { if(m && m !== '특이사항 없음') manSet.add(m); });
+  });
+  const manpower = manSet.size > 0 ? [...manSet] : ['특이사항 없음'];
+
+  // 주요일정: 날짜 기준 정렬하여 합치기 (중복 제거)
+  const schedMap = {};
+  entries.forEach(e => {
+    (e.schedule||[]).forEach(s => {
+      if(!s.date && !s.detail) return;
+      const key = (s.date||'')+'|'+(s.detail||'');
+      if(!schedMap[key]) schedMap[key] = s;
+    });
+  });
+  const schedule = Object.values(schedMap).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+  // 공공사업: 사업명 기준으로 합치기
+  const bizMap = {};
+  entries.forEach(e => {
+    (e.biz_details||[]).forEach(b => {
+      if(!b.name) return;
+      const key = b.name.trim();
+      if(!bizMap[key]) bizMap[key] = {name: key, details: []};
+      (b.details||[]).forEach(det => { if(det && !bizMap[key].details.includes(det)) bizMap[key].details.push(det); });
+    });
+  });
+  const biz_details = Object.values(bizMap);
+
+  // 제안: 합치기 (중복 제거)
+  const propSet = {};
+  entries.forEach(e => {
+    (e.proposals||[]).forEach(p => {
+      if(!p.title) return;
+      if(!propSet[p.title]) propSet[p.title] = p;
+    });
+  });
+  const proposals = Object.values(propSet);
+
+  // 제안요약: 첫 번째 항목
+  const proposal_summary = entries.find(e=>e.proposal_summary)?.proposal_summary || '';
+
+  // 본부행사: 합치기
+  const evtSet = {};
+  entries.forEach(e => {
+    (e.main_events||[]).forEach(ev => {
+      if(!ev.content) return;
+      if(!evtSet[ev.content]) evtSet[ev.content] = ev;
+    });
+  });
+  const main_events = Object.values(evtSet);
+
+  return { date, orig_issues, sum_issues, manpower, schedule, biz_details, proposals, proposal_summary, main_events };
+}
+
 async function doHWP(){
   const btn = document.querySelector('.bhwp');
-  if(btn){ btn.textContent='⏳ 생성 중...'; btn.disabled=true; }
+  if(btn){ btn.textContent='⏳ 취합 중...'; btn.disabled=true; }
   try{
-    // Firebase에서 원본 데이터 직접 읽기
-    const user = document.getElementById('userSel').value;
-    const key = user.replace(/[\s.()]/g,'_');
-    let data = null;
-    if(user && window.fbGet){
-      const saved = await window.fbGet(`reports/daily/${TKEY}/${key}`);
-      if(saved) data = saved;
-    }
-    // Firebase 데이터 없으면 화면 데이터 사용
-    if(!data) data = getDailyData();
+    // 전체 팀원 데이터 취합
+    const data = await mergeAllData();
     
     const res = await fetch(CLOUD_FN_URL, {
       method:'POST',

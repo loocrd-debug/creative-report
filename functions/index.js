@@ -278,3 +278,4 @@ exports.generateWeeklyAI = functions
     }
   });
 // clean-v17
+// deploy-trigger

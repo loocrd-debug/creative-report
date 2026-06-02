@@ -960,14 +960,20 @@ function loadSaved(saved){
   if(saved.date) document.getElementById('rptDate').value = saved.date;
 
   // ── 본부 주요행사 ──
-  const evtRows = document.querySelectorAll('#evtB tr');
-  (saved.main_events||[]).forEach((ev,i)=>{
-    if(!evtRows[i]) return;
-    const c = evtRows[i].querySelectorAll('input');
-    if(c[0]) c[0].value = ev.div||'';
-    if(c[1]) c[1].value = ev.content||'';
-    if(c[2]) c[2].value = ev.note||'';
-  });
+  const evtBox = document.getElementById('evtB');
+  if(evtBox){
+    const existEvtRows = evtBox.querySelectorAll('tr');
+    existEvtRows.forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
+    (saved.main_events||[]).forEach((ev,i)=>{
+      let row = evtBox.querySelectorAll('tr')[i];
+      if(!row){ addTR('evtB'); row = evtBox.querySelectorAll('tr')[i]; }
+      if(!row) return;
+      const c = row.querySelectorAll('input');
+      if(c[0]) c[0].value = ev.div||'';
+      if(c[1]) c[1].value = ev.content||'';
+      if(c[2]) c[2].value = ev.note||'';
+    });
+  }
 
   // ── 요약 현안이슈 ──
   const sumBox = document.getElementById('sumI');
@@ -1044,14 +1050,21 @@ function loadSaved(saved){
   }
 
   // ── 주요일정 ──
-  const schedRows = document.querySelectorAll('#schedB tr');
-  (saved.schedule||[]).forEach((s,i)=>{
-    if(!schedRows[i]) return;
-    const c = schedRows[i].querySelectorAll('input');
-    if(c[0]) c[0].value = s.date||'';
-    if(c[1]) c[1].value = s.detail||'';
-    if(c[2]) c[2].value = s.note||'';
-  });
+  const schedBox = document.getElementById('schedB');
+  if(schedBox){
+    // 기존 행 모두 초기화
+    const existRows = schedBox.querySelectorAll('tr');
+    existRows.forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
+    (saved.schedule||[]).forEach((s,i)=>{
+      let row = schedBox.querySelectorAll('tr')[i];
+      if(!row){ addTR('schedB'); row = schedBox.querySelectorAll('tr')[i]; }
+      if(!row) return;
+      const c = row.querySelectorAll('input');
+      if(c[0]) c[0].value = s.date||'';
+      if(c[1]) c[1].value = s.detail||'';
+      if(c[2]) c[2].value = s.note||'';
+    });
+  }
 
   // ── 제안발표 요약 ──
   const propSumEl = document.getElementById('propSum');
@@ -1059,14 +1072,20 @@ function loadSaved(saved){
     propSumEl.value = saved.proposal_summary||'';
 
   // ── 제안목록 ──
-  const propRows = document.querySelectorAll('#propB tr');
-  (saved.proposals||[]).forEach((p,i)=>{
-    if(!propRows[i]) return;
-    const c = propRows[i].querySelectorAll('input');
-    if(c[0]) c[0].value = p.title||'';
-    if(c[1]) c[1].value = p.person||'';
-    if(c[2]) c[2].value = p.date||'';
-  });
+  const propBox = document.getElementById('propB');
+  if(propBox){
+    const existPropRows = propBox.querySelectorAll('tr');
+    existPropRows.forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
+    (saved.proposals||[]).forEach((p,i)=>{
+      let row = propBox.querySelectorAll('tr')[i];
+      if(!row){ addTR('propB'); row = propBox.querySelectorAll('tr')[i]; }
+      if(!row) return;
+      const c = row.querySelectorAll('input');
+      if(c[0]) c[0].value = p.title||'';
+      if(c[1]) c[1].value = p.person||'';
+      if(c[2]) c[2].value = p.date||'';
+    });
+  }
 
   // ── 공공사업 상세 ──
   const bizBox = document.getElementById('bizB');

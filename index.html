@@ -602,8 +602,14 @@ async function loadMerged(){
     };
     if(merged.manpower.length === 0) merged.manpower = ['특이사항 없음'];
 
-    // 화면에 로드
+    // 취합 데이터를 전역 변수에 저장 (HWP 저장 시 사용)
+    window._mergedData = merged;
+
+    // 화면에 로드 (setTimeout으로 DOM 안정화 후 실행)
     loadSaved(merged);
+
+    // 취합 완료 후 DOM 안정화 대기
+    await new Promise(r=>setTimeout(r,300));
 
     // 상단에 취합 알림 배너 표시
     const banner = document.createElement('div');
@@ -939,6 +945,7 @@ function updProg(){
 }
 document.addEventListener('input',updProg);
 document.getElementById('userSel').addEventListener('change', async ()=>{
+  window._mergedData = null; // 개인 데이터 모드로 전환
   updProg();
   const user = document.getElementById('userSel').value;
   if(!user || !window.fbGet) return;
@@ -960,10 +967,10 @@ function loadSaved(saved){
   if(saved.date) document.getElementById('rptDate').value = saved.date;
 
   // ── 본부 주요행사 ──
-  const evtBox = document.getElementById('evtB');
-  if(evtBox){
-    const existEvtRows = evtBox.querySelectorAll('tr');
-    existEvtRows.forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
+  setTimeout(()=>{
+    const evtBox = document.getElementById('evtB');
+    if(!evtBox) return;
+    [...evtBox.querySelectorAll('tr')].forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
     (saved.main_events||[]).forEach((ev,i)=>{
       let row = evtBox.querySelectorAll('tr')[i];
       if(!row){ addTR('evtB'); row = evtBox.querySelectorAll('tr')[i]; }
@@ -973,7 +980,7 @@ function loadSaved(saved){
       if(c[1]) c[1].value = ev.content||'';
       if(c[2]) c[2].value = ev.note||'';
     });
-  }
+  }, 100);
 
   // ── 요약 현안이슈 ──
   const sumBox = document.getElementById('sumI');
@@ -1050,11 +1057,10 @@ function loadSaved(saved){
   }
 
   // ── 주요일정 ──
-  const schedBox = document.getElementById('schedB');
-  if(schedBox){
-    // 기존 행 모두 초기화
-    const existRows = schedBox.querySelectorAll('tr');
-    existRows.forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
+  setTimeout(()=>{
+    const schedBox = document.getElementById('schedB');
+    if(!schedBox) return;
+    [...schedBox.querySelectorAll('tr')].forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
     (saved.schedule||[]).forEach((s,i)=>{
       let row = schedBox.querySelectorAll('tr')[i];
       if(!row){ addTR('schedB'); row = schedBox.querySelectorAll('tr')[i]; }
@@ -1064,7 +1070,7 @@ function loadSaved(saved){
       if(c[1]) c[1].value = s.detail||'';
       if(c[2]) c[2].value = s.note||'';
     });
-  }
+  }, 100);
 
   // ── 제안발표 요약 ──
   const propSumEl = document.getElementById('propSum');
@@ -1072,10 +1078,11 @@ function loadSaved(saved){
     propSumEl.value = saved.proposal_summary||'';
 
   // ── 제안목록 ──
-  const propBox = document.getElementById('propB');
-  if(propBox){
-    const existPropRows = propBox.querySelectorAll('tr');
-    existPropRows.forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
+  setTimeout(()=>{
+    const propBox = document.getElementById('propB');
+    if(!propBox) return;
+    // 기존 행 초기화
+    [...propBox.querySelectorAll('tr')].forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
     (saved.proposals||[]).forEach((p,i)=>{
       let row = propBox.querySelectorAll('tr')[i];
       if(!row){ addTR('propB'); row = propBox.querySelectorAll('tr')[i]; }
@@ -1085,7 +1092,7 @@ function loadSaved(saved){
       if(c[1]) c[1].value = p.person||'';
       if(c[2]) c[2].value = p.date||'';
     });
-  }
+  }, 100);
 
   // ── 공공사업 상세 ──
   const bizBox = document.getElementById('bizB');
@@ -1442,9 +1449,8 @@ async function doHWP(){
   const btn = document.querySelector('.bhwp');
   if(btn){ btn.textContent='⏳ 생성 중...'; btn.disabled=true; }
   try{
-    // 항상 현재 화면 데이터 사용
-    // (취합 보기로 로드했으면 취합된 데이터, 개인 작성 중이면 개인 데이터)
-    const data = getDailyData();
+    // 취합 데이터가 있으면 우선 사용, 없으면 화면 데이터
+    const data = window._mergedData || getDailyData();
     
     const res = await fetch(CLOUD_FN_URL, {
       method:'POST',

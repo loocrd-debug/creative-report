@@ -1236,35 +1236,23 @@ function getWeeklyData(){
 }
 
 async function dlWeeklyHWP(){
-  // 주간보고 내용을 텍스트로 복사
   const d = getWeeklyData();
-  let txt = `□ 크리에이티브그룹 주간상황(요약)보고\n`;
-  txt += `보고자: ${d.reporter}  기간: ${d.weekRange}\n\n`;
-  txt += `■ 연간 목표\n${d.sumGoal}\n\n`;
-  txt += `■ 진척사항\n${d.sumProg}\n\n`;
-  if(d.issues.length>0){
-    txt += `■ 현안 및 이슈사항\n`;
-    d.issues.forEach(i=>{ txt += `  - ${i}\n`; });
-    txt += '\n';
-  }
-  if(d.biz.length>0){
-    txt += `■ 공공사업 상세\n`;
-    d.biz.forEach(b=>{ txt += `  ○ ${b.name}\n`; b.details.forEach(det=>{ txt += `    ㆍ${det}\n`; }); });
-    txt += '\n';
-  }
-  if(d.schedule.length>0){
-    txt += `■ 주요 일정\n`;
-    d.schedule.forEach(s=>{ txt += `  ${s.date} ${s.detail} ${s.note?'('+s.note+')':''}\n`; });
-  }
+  const btn = document.querySelector('.bhwp');
+  if(btn){ btn.textContent='⏳ 생성 중...'; btn.disabled=true; }
   try{
-    await navigator.clipboard.writeText(txt);
-    alert('주간보고 내용이 클립보드에 복사되었습니다!\n한글에 붙여넣기 하세요.');
-  }catch(e){
-    const ta=document.createElement('textarea');
-    ta.value=txt; document.body.appendChild(ta); ta.select();
-    document.execCommand('copy'); document.body.removeChild(ta);
-    alert('주간보고 내용이 클립보드에 복사되었습니다!\n한글에 붙여넣기 하세요.');
-  }
+    const res = await fetch(CLOUD_FN_URL.replace('generateHWPX','generateWeeklyHWPX'),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({data: d})
+    });
+    if(!res.ok) throw new Error('서버 오류: '+res.status);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '주간상황보고_크리에이티브그룹.hwpx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }catch(e){ alert('오류: '+e.message); console.error(e); }
+  finally{ if(btn){ btn.textContent='📄 HWP 저장'; btn.disabled=false; } }
 }
 </script>
 </body>

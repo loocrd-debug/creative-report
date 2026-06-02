@@ -238,35 +238,20 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
 <div class="page hidden" id="pg-weekly">
   <div class="banner bok" id="wbOk">✅ 저장되었습니다.</div>
 
-  <!-- AI 취합 섹션 -->
+  <!-- 이번 주 일일보고 참고 -->
   <div class="card" style="margin-bottom:14px;">
     <div class="card-hd">
-      <div class="card-hl"><span class="tag tao">AI</span><span class="card-title">일일보고 → 주간보고 AI 자동취합</span></div>
+      <div class="card-hl"><span class="tag tao">참고</span><span class="card-title">이번 주 일일보고 현황</span></div>
       <div style="font-size:11px;color:var(--t2);" id="wkRangeLabel"></div>
     </div>
     <div class="card-body">
-      <p style="color:var(--t2);font-size:12px;margin-bottom:14px;">💡 이번 주 저장된 일일보고를 AI가 분석해 주간보고 초안을 작성합니다. 생성 후 직접 수정·추가·삭제 가능합니다.</p>
+      <p style="color:var(--t2);font-size:12px;margin-bottom:10px;">💡 아래 이번 주 일일보고 내용을 참고하여 주간보고를 작성하세요.</p>
       <div id="wkDayCards"></div>
-      <div style="display:flex;justify-content:flex-end;margin-top:12px;">
-        <button class="btn bai" id="aiBtn" onclick="genWeeklyAI()"><span id="aiSpn"></span>✨ AI 주간보고 생성</button>
-      </div>
-      <div class="ai-box" id="aiBox">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--bd);">
-          <span style="color:var(--ac);font-size:12px;font-weight:700;">✨ AI 생성 결과 — 아래 내용을 직접 수정할 수 있습니다</span>
-          <div style="display:flex;gap:6px;">
-            <button class="btn bg" onclick="copyAI()">📋 복사</button>
-            <button class="btn bg" onclick="applyToForm()">✏️ 폼에 적용</button>
-            <button class="btn bhwp btn" onclick="dlWeeklyHWP()">📄 HWP 저장</button>
-          </div>
-        </div>
-        <div id="aiThink" class="hidden" style="display:flex;align-items:center;gap:8px;color:var(--ac);font-size:12px;padding:8px 0;"><div class="spinner"></div>AI가 주간보고를 작성 중입니다...</div>
-        <textarea id="aiResult" style="min-height:320px;font-family:var(--sans);font-size:13px;line-height:1.9;background:var(--bg);border:1px solid var(--bd);color:var(--t1);border-radius:6px;padding:12px;width:100%;resize:vertical;" placeholder="AI 생성 결과가 여기에 표시됩니다.&#10;생성 후 직접 수정할 수 있어요."></textarea>
-      </div>
     </div>
   </div>
 
   <!-- 요약보고 입력 -->
-  <div class="sep"><div class="sep-badge sep-bl">요약보고 입력</div><div class="sep-line"></div><div class="sep-desc">AI 결과를 참고해 입력</div></div>
+  <div class="sep"><div class="sep-badge sep-bl">주간보고 작성</div><div class="sep-line"></div><div class="sep-desc">일일보고를 참고해 입력</div></div>
 
   <div class="card">
     <div class="card-hd"><div class="card-hl"><span class="tag tac">제목</span><span class="card-title">크리에이티브그룹 주간상황(요약)보고</span></div></div>
@@ -1079,7 +1064,8 @@ async function doSave(){
   }else if(activeTab==='tb-weekly'){
     const rep=document.getElementById('reporter').value;
     if(!rep){alert('보고자를 입력해주세요.');return;}
-    if(window.fbSet)await window.fbSet(`reports/weekly/${TKEY}`,{reporter:rep,ai_result:document.getElementById('aiResult').value,savedAt:Date.now()});
+    const wData = getWeeklyData();
+    if(window.fbSet)await window.fbSet(`reports/weekly/${TKEY}`, wData);
     const b=document.getElementById('wbOk'); b.classList.add('show');
     setTimeout(()=>b.classList.remove('show'),3500);
   }
@@ -1222,7 +1208,64 @@ async function doHWP(){
   finally{ if(btn){ btn.textContent='📄 HWP 저장'; btn.disabled=false; } }
 }
 
-async function dlWeeklyHWP(){ await doHWP(); }
+function getWeeklyData(){
+  return {
+    reporter: document.getElementById('reporter')?.value||'',
+    weekRange: document.getElementById('weekRange')?.value||'',
+    sumGoal: document.getElementById('sumGoal')?.value||'',
+    sumProg: document.getElementById('sumProg')?.value||'',
+    issues: [...document.querySelectorAll('#wkIssueB input[type=text]')].map(i=>i.value).filter(Boolean),
+    proposals: {
+      summary: document.getElementById('wkPropSum')?.value||'',
+      list: [...document.querySelectorAll('#wkPropB tr')].map(tr=>{
+        const c=tr.querySelectorAll('input');
+        return {title:c[0]?.value||'',person:c[1]?.value||'',date:c[2]?.value||''};
+      }).filter(r=>r.title)
+    },
+    biz: [...document.querySelectorAll('#wkBizB .item')].map(item=>{
+      const inputs=[...item.querySelectorAll('input')];
+      return {name:inputs[0]?.value||'',details:inputs.slice(1).map(i=>i.value).filter(Boolean)};
+    }).filter(b=>b.name),
+    schedule: [...document.querySelectorAll('#wkSchedB tr')].map(tr=>{
+      const c=tr.querySelectorAll('input');
+      return {date:c[0]?.value||'',detail:c[1]?.value||'',note:c[2]?.value||''};
+    }).filter(r=>r.date||r.detail),
+    collab: document.getElementById('wkCollab')?.value||'',
+    savedAt: Date.now()
+  };
+}
+
+async function dlWeeklyHWP(){
+  // 주간보고 내용을 텍스트로 복사
+  const d = getWeeklyData();
+  let txt = `□ 크리에이티브그룹 주간상황(요약)보고\n`;
+  txt += `보고자: ${d.reporter}  기간: ${d.weekRange}\n\n`;
+  txt += `■ 연간 목표\n${d.sumGoal}\n\n`;
+  txt += `■ 진척사항\n${d.sumProg}\n\n`;
+  if(d.issues.length>0){
+    txt += `■ 현안 및 이슈사항\n`;
+    d.issues.forEach(i=>{ txt += `  - ${i}\n`; });
+    txt += '\n';
+  }
+  if(d.biz.length>0){
+    txt += `■ 공공사업 상세\n`;
+    d.biz.forEach(b=>{ txt += `  ○ ${b.name}\n`; b.details.forEach(det=>{ txt += `    ㆍ${det}\n`; }); });
+    txt += '\n';
+  }
+  if(d.schedule.length>0){
+    txt += `■ 주요 일정\n`;
+    d.schedule.forEach(s=>{ txt += `  ${s.date} ${s.detail} ${s.note?'('+s.note+')':''}\n`; });
+  }
+  try{
+    await navigator.clipboard.writeText(txt);
+    alert('주간보고 내용이 클립보드에 복사되었습니다!\n한글에 붙여넣기 하세요.');
+  }catch(e){
+    const ta=document.createElement('textarea');
+    ta.value=txt; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    alert('주간보고 내용이 클립보드에 복사되었습니다!\n한글에 붙여넣기 하세요.');
+  }
+}
 </script>
 </body>
 </html>

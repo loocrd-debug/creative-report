@@ -797,18 +797,40 @@ function addIssue(cid,pref){
     </div>
     <div class="lbl">항목</div>
     <div id="il${idx}">
-      <div class="brow"><div class="bsym bgr">-</div><div class="binp"><input type="text" placeholder="업무 내용"></div><button class="btn bg" style="padding:2px 5px" onclick="delBR(this)">✕</button></div>
-    </div>
-    <button class="btn bg" style="font-size:10px;margin-top:5px;" onclick="addBR('il${idx}','-')">+ 항목 추가</button>
-    ${isO?`
-    <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd);">
-      <div class="lbl">ㆍ 세부 내용</div>
-      <div id="dl${idx}">
-        <div class="brow"><div class="bsym bgr">ㆍ</div><div class="binp"><input type="text" placeholder="세부 업무 내용"></div><button class="btn bg" style="padding:2px 5px" onclick="delBR(this)">✕</button></div>
+      <div class="brow" style="flex-direction:column;align-items:stretch;gap:3px;">
+        <div style="display:flex;gap:7px;align-items:center;">
+          <div class="bsym bgr">-</div>
+          <div class="binp"><input type="text" class="iitem" placeholder="업무 내용"></div>
+          <button class="btn bg" style="padding:2px 5px" onclick="delBR(this)">✕</button>
+        </div>
+        ${isO?`<div style="display:flex;gap:7px;align-items:center;padding-left:18px;">
+          <div class="bsym" style="color:var(--t3);font-size:10px;">ㆍ</div>
+          <div class="binp"><input type="text" class="idetail" placeholder="세부 내용 (선택)" style="font-size:10px;color:var(--t2);"></div>
+        </div>`:''}
       </div>
-      <button class="btn bg" style="font-size:10px;margin-top:5px;" onclick="addBR('dl${idx}','ㆍ')">+ 세부 추가</button>
-    </div>`:''}`;
+    </div>
+    <button class="btn bg" style="font-size:10px;margin-top:5px;" onclick="addItemRow('il${idx}',${isO})">+ 항목 추가</button>`;
   box.appendChild(div);
+}
+
+// ── 항목+세부 쌍 추가 ──
+function addItemRow(containerId, withDetail){
+  const box = document.getElementById(containerId);
+  if(!box) return;
+  const row = document.createElement('div');
+  row.className = 'brow';
+  row.style.cssText = 'flex-direction:column;align-items:stretch;gap:3px;';
+  row.innerHTML = `
+    <div style="display:flex;gap:7px;align-items:center;">
+      <div class="bsym bgr">-</div>
+      <div class="binp"><input type="text" class="iitem" placeholder="업무 내용"></div>
+      <button class="btn bg" style="padding:2px 5px" onclick="delBR(this)">✕</button>
+    </div>
+    ${withDetail?`<div style="display:flex;gap:7px;align-items:center;padding-left:18px;">
+      <div class="bsym" style="color:var(--t3);font-size:10px;">ㆍ</div>
+      <div class="binp"><input type="text" class="idetail" placeholder="세부 내용 (선택)" style="font-size:10px;color:var(--t2);"></div>
+    </div>`:''}`;
+  box.appendChild(row);
 }
 
 // ── 사업별 상세 ──
@@ -912,12 +934,18 @@ function loadSaved(saved){
           else { addBR(last.querySelector('[id^="il"]')?.id, '-'); const newInps = last.querySelectorAll('.binp input'); if(newInps[i2]) newInps[i2].value = it; }
         });
         // 세부 내용 복원
-        const dlDiv = last.querySelector('[id^="dl"]');
-        if(dlDiv){
-          const detInputs = dlDiv.querySelectorAll('input');
-          (iss.details||[]).forEach((det,i2)=>{
-            if(i2===0 && detInputs[0]){ detInputs[0].value=det; }
-            else { addBR(dlDiv.id,'ㆍ'); const newInps=dlDiv.querySelectorAll('input'); if(newInps[i2]) newInps[i2].value=det; }
+        // 항목+세부 쌍 복원
+        const ilDiv2 = last.querySelector('[id^="il"]');
+        if(ilDiv2){
+          const rows=[...ilDiv2.querySelectorAll('.brow')];
+          (iss.items||[]).forEach((it,i2)=>{
+            let row=rows[i2];
+            if(!row){ addItemRow(ilDiv2.id,true); row=[...ilDiv2.querySelectorAll('.brow')][i2]; }
+            if(!row) return;
+            const itemInp=row.querySelector('.iitem');
+            const detInp=row.querySelector('.idetail');
+            if(itemInp) itemInp.value=it;
+            if(detInp && iss.details && iss.details[i2]) detInp.value=iss.details[i2];
           });
         }
       });
@@ -990,11 +1018,24 @@ function loadSaved(saved){
 function getDailyData(){
   const getIssues=id=>[...document.querySelectorAll(`#${id} .item`)].map(item=>{
     const pnm=item.querySelector('.pnm')?.value||'';
-    // il... = 항목, dl... = 세부
-    const ilDiv=[...item.querySelectorAll('[id^="il"]')];
-    const dlDiv=[...item.querySelectorAll('[id^="dl"]')];
-    const items=ilDiv.flatMap(d=>[...d.querySelectorAll('input')].map(i=>i.value)).filter(Boolean);
-    const details=dlDiv.flatMap(d=>[...d.querySelectorAll('input')].map(i=>i.value)).filter(Boolean);
+    const ilDiv=item.querySelector('[id^="il"]');
+    if(!ilDiv) return {project:pnm, items:[], details:[]};
+    // 각 행에서 항목(.iitem)과 세부(.idetail) 쌍으로 수집
+    const rows=[...ilDiv.querySelectorAll('.brow')];
+    const items=[], details=[];
+    rows.forEach(row=>{
+      const itemInp=row.querySelector('.iitem');
+      const detInp=row.querySelector('.idetail');
+      if(itemInp?.value) {
+        items.push(itemInp.value);
+        details.push(detInp?.value||'');
+      }
+    });
+    // 새 구조 없으면 기존 방식 fallback
+    if(items.length===0){
+      const allInp=[...ilDiv.querySelectorAll('input')].map(i=>i.value).filter(Boolean);
+      return {project:pnm, items:allInp, details:allInp.map(()=>'')};
+    }
     return {project:pnm, items, details};
   });
   return{

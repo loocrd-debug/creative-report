@@ -176,6 +176,13 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
     <div class="card-body"><div class="lbl">보고일자</div><input type="text" id="rptDate" style="max-width:280px;"></div>
   </div>
 
+  <!-- 어제/날짜 불러오기 -->
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;padding:0 2px;">
+    <button class="btn bg" onclick="loadYesterday()" style="font-size:11px;">📋 어제 불러오기</button>
+    <input type="date" id="loadDatePick" style="background:var(--s2);border:1px solid var(--bd);border-radius:5px;color:var(--t1);padding:4px 8px;font-size:11px;">
+    <button class="btn bg" onclick="loadByDate()" style="font-size:11px;">📂 날짜 불러오기</button>
+  </div>
+
   <div class="card">
     <div class="card-hd"><div class="card-hl"><span class="tag tac">1</span><span class="card-title">본부 주요 행사</span></div><button class="btn bg" onclick="addTR('evtB')">+ 행 추가</button></div>
     <div class="card-body"><table class="tbl"><thead><tr><th style="width:22%">구 분</th><th>내 용</th><th style="width:15%">비 고</th><th style="width:32px"></th></tr></thead><tbody id="evtB"><tr><td><input type="text"></td><td><input type="text"></td><td><input type="text"></td><td><button class="btn bd" style="padding:2px 5px" onclick="delTR(this)">✕</button></td></tr></tbody></table></div>
@@ -265,10 +272,6 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
     <div class="card-hd"><div class="card-hl"><span class="tag tac">제목</span><span class="card-title">크리에이티브그룹 주간상황(요약)보고</span></div></div>
     <div class="card-body">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-        <button class="btn bg" onclick="loadYesterday()" style="font-size:11px;" title="어제 작성한 내용을 불러옵니다">📋 어제 불러오기</button>
-        <span style="color:var(--t3);font-size:11px;">|</span>
-        <input type="date" id="loadDatePick" style="background:var(--s2);border:1px solid var(--bd);border-radius:5px;color:var(--t1);padding:4px 8px;font-size:11px;" title="특정 날짜 데이터 불러오기">
-        <button class="btn bg" onclick="loadByDate()" style="font-size:11px;">📂 날짜 불러오기</button>
         <div class="lbl" style="margin:0;white-space:nowrap;">보고자</div>
         <input type="text" id="reporter" placeholder="김아인 그룹장" style="max-width:180px;">
         <div class="lbl" style="margin:0;white-space:nowrap;margin-left:8px;">기간</div>
@@ -843,8 +846,18 @@ document.getElementById('userSel').addEventListener('change', async ()=>{
   if(!user || !window.fbGet) return;
   const key = user.replace(/[\s.()]/g,'_');
   const saved = await window.fbGet(`reports/daily/${TKEY}/${key}`);
-  if(!saved){ return; }
+  loadSaved(saved);
+  if(saved){
+    const tip = document.createElement('div');
+    tip.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+    tip.textContent = `✅ ${user}님의 저장된 내용을 불러왔습니다`;
+    document.body.appendChild(tip);
+    setTimeout(()=>tip.remove(), 3000);
+  }
+});
 
+function loadSaved(saved){
+  if(!saved) return;
   // ── 날짜 ──
   if(saved.date) document.getElementById('rptDate').value = saved.date;
 
@@ -961,14 +974,8 @@ document.getElementById('userSel').addEventListener('change', async ()=>{
   }
 
   updProg();
+}
 
-  // ── 완료 토스트 ──
-  const tip = document.createElement('div');
-  tip.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.2)';
-  tip.textContent = `✅ ${user}님의 저장된 내용을 불러왔습니다`;
-  document.body.appendChild(tip);
-  setTimeout(()=>tip.remove(), 3000);
-});
 
 // ── 데이터 수집 ──
 function getDailyData(){

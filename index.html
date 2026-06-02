@@ -911,6 +911,15 @@ function loadSaved(saved){
           if(i2 === 0 && inputs[0]){ inputs[0].value = it; }
           else { addBR(last.querySelector('[id^="il"]')?.id, '-'); const newInps = last.querySelectorAll('.binp input'); if(newInps[i2]) newInps[i2].value = it; }
         });
+        // 세부 내용 복원
+        const dlDiv = last.querySelector('[id^="dl"]');
+        if(dlDiv){
+          const detInputs = dlDiv.querySelectorAll('input');
+          (iss.details||[]).forEach((det,i2)=>{
+            if(i2===0 && detInputs[0]){ detInputs[0].value=det; }
+            else { addBR(dlDiv.id,'ㆍ'); const newInps=dlDiv.querySelectorAll('input'); if(newInps[i2]) newInps[i2].value=det; }
+          });
+        }
       });
     } else { addIssue('origI','orig'); }
   }
@@ -979,10 +988,15 @@ function loadSaved(saved){
 
 // ── 데이터 수집 ──
 function getDailyData(){
-  const getIssues=id=>[...document.querySelectorAll(`#${id} .item`)].map(item=>({
-    project:item.querySelector('.pnm')?.value||'',
-    items:[...item.querySelectorAll('.binp input')].map(i=>i.value).filter(Boolean)
-  }));
+  const getIssues=id=>[...document.querySelectorAll(`#${id} .item`)].map(item=>{
+    const pnm=item.querySelector('.pnm')?.value||'';
+    // il... = 항목, dl... = 세부
+    const ilDiv=[...item.querySelectorAll('[id^="il"]')];
+    const dlDiv=[...item.querySelectorAll('[id^="dl"]')];
+    const items=ilDiv.flatMap(d=>[...d.querySelectorAll('input')].map(i=>i.value)).filter(Boolean);
+    const details=dlDiv.flatMap(d=>[...d.querySelectorAll('input')].map(i=>i.value)).filter(Boolean);
+    return {project:pnm, items, details};
+  });
   return{
     date:document.getElementById('rptDate').value,
     writer:document.getElementById('userSel').value,

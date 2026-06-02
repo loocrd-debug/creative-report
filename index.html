@@ -375,7 +375,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
   <div style="display:flex;gap:8px;">
     <button class="btn bg" id="saveBtn" onclick="doSave()">💾 저장</button>
     <button class="btn bg" onclick="togglePreview()" id="prevBtn">👁 미리보기</button>
-    <button class="btn bhwp btn" onclick="doHWP()">📄 HWP 저장</button>
+    <button class="btn bhwp btn" id="hwpBtn" onclick="doHWPAuto()">📄 HWP 저장</button>
   </div>
 </div>
 
@@ -1176,6 +1176,12 @@ function updatePreview(){
   }
 
   cont.innerHTML=h||'<div style="color:var(--t3);font-size:11px;">작성된 내용이 없습니다.</div>';
+}
+
+function doHWPAuto(){
+  const tab = document.querySelector('.tab.on')?.id;
+  if(tab === 'tb-weekly') dlWeeklyHWP();
+  else doHWP();
 }
 
 async function doHWP(){

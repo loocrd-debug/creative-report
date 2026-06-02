@@ -238,8 +238,43 @@ exports.generateHWPX = functions
       res.status(500).json({error:e.message});
     }
   });
-// clean-v4
 // clean-v7
-// clean-v12
 // clean-v14
-// clean-v16
+
+exports.generateWeeklyAI = functions
+  .region("asia-northeast1")
+  .runWith({memory:"256MB", timeoutSeconds:60})
+  .https.onRequest(async(req,res)=>{
+    res.set("Access-Control-Allow-Origin","*");
+    res.set("Access-Control-Allow-Methods","POST,OPTIONS");
+    res.set("Access-Control-Allow-Headers","Content-Type");
+    if(req.method==="OPTIONS"){res.status(204).send("");return;}
+    if(req.method!=="POST"){res.status(405).send("Method Not Allowed");return;}
+    try{
+      const {prompt} = req.body;
+      if(!prompt) throw new Error("prompt 없음");
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if(!apiKey) throw new Error("API 키 미설정");
+      const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "x-api-key": apiKey,
+          "anthropic-version":"2023-06-01"
+        },
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1500,
+          messages:[{role:"user", content:prompt}]
+        })
+      });
+      if(!apiRes.ok) throw new Error("Anthropic API 오류: "+apiRes.status);
+      const result = await apiRes.json();
+      const text = result.content?.find(c=>c.type==="text")?.text || "생성 실패";
+      res.json({text});
+    }catch(e){
+      console.error(e);
+      res.status(500).json({error:e.message});
+    }
+  });
+// clean-v17

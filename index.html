@@ -265,6 +265,10 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
     <div class="card-hd"><div class="card-hl"><span class="tag tac">제목</span><span class="card-title">크리에이티브그룹 주간상황(요약)보고</span></div></div>
     <div class="card-body">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <button class="btn bg" onclick="loadYesterday()" style="font-size:11px;" title="어제 작성한 내용을 불러옵니다">📋 어제 불러오기</button>
+        <span style="color:var(--t3);font-size:11px;">|</span>
+        <input type="date" id="loadDatePick" style="background:var(--s2);border:1px solid var(--bd);border-radius:5px;color:var(--t1);padding:4px 8px;font-size:11px;" title="특정 날짜 데이터 불러오기">
+        <button class="btn bg" onclick="loadByDate()" style="font-size:11px;">📂 날짜 불러오기</button>
         <div class="lbl" style="margin:0;white-space:nowrap;">보고자</div>
         <input type="text" id="reporter" placeholder="김아인 그룹장" style="max-width:180px;">
         <div class="lbl" style="margin:0;white-space:nowrap;margin-left:8px;">기간</div>
@@ -369,10 +373,20 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
   </div>
 </div>
 
+<!-- 미리보기 패널 -->
+<div id="previewPanel" style="display:none;position:fixed;top:52px;right:0;bottom:56px;width:420px;background:var(--s1);border-left:1px solid var(--bd);overflow-y:auto;z-index:90;padding:16px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <span style="font-size:13px;font-weight:600;color:var(--t1);">📋 내용 미리보기</span>
+    <button class="btn bg" onclick="togglePreview()" style="font-size:11px;">✕ 닫기</button>
+  </div>
+  <div id="previewContent" style="font-size:11px;line-height:1.7;color:var(--t2);"></div>
+</div>
+
 <div class="foot">
   <div class="foot-l" id="footSt">작성자를 선택해주세요</div>
   <div style="display:flex;gap:8px;">
     <button class="btn bg" id="saveBtn" onclick="doSave()">💾 저장</button>
+    <button class="btn bg" onclick="togglePreview()" id="prevBtn">👁 미리보기</button>
     <button class="btn bhwp btn" onclick="doHWP()">📄 HWP 저장</button>
   </div>
 </div>
@@ -464,13 +478,28 @@ function renderMembers(){
   const sel=document.getElementById('userSel');
   const cur=sel.value;
   grid.innerHTML=members.map((m,i)=>`
-    <div class="mcard">
+    <div class="mcard" id="mc${i}">
       <div class="mav">${(m.n||'?')[0]}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:600;">${m.n||''} ${m.r||''}</div>
-        <div style="font-size:11px;color:var(--t2);margin-top:1px;">${m.p||''}</div>
+        <div style="font-size:12px;font-weight:600;">${m.n||''} <span style="color:var(--t2)">${m.r||''}</span></div>
+        <div style="font-size:11px;color:var(--t2);margin-top:1px;">${m.k||''} ${m.p?'/ '+m.p:''}</div>
       </div>
+      <button class="btn bg" style="padding:2px 7px;flex-shrink:0;margin-right:3px;font-size:10px" onclick="editMember(${i})">✏️</button>
       <button class="btn bd" style="padding:2px 5px;flex-shrink:0" onclick="delMember(${i})">✕</button>
+    </div>
+    <div class="item hidden" id="mef${i}" style="margin:4px 0 8px;padding:10px;background:var(--s2);border-radius:6px;border:1px solid var(--ac);">
+      <div class="g2" style="margin-bottom:6px;">
+        <div><div class="lbl">이름</div><input type="text" id="men${i}" value="${m.n||''}" placeholder="홍길동"></div>
+        <div><div class="lbl">직급</div><input type="text" id="mer${i}" value="${m.r||''}" placeholder="책임/수석/팀장"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px;">
+        <div><div class="lbl">연락처</div><input type="text" id="mek${i}" value="${m.k||''}" placeholder="010-0000-0000"></div>
+        <div><div class="lbl">담당사업</div><input type="text" id="mep${i}" value="${m.p||''}" placeholder="정부24 운영사업"></div>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:flex-end;">
+        <button class="btn bg" onclick="editMember(${i})">취소</button>
+        <button class="btn bp" onclick="saveMember(${i})">저장</button>
+      </div>
     </div>`).join('');
   sel.innerHTML='<option value="">작성자 선택</option>'+
     members.map(m=>`<option value="${m.n} ${m.r}">${m.n} (${m.r})</option>`).join('');
@@ -507,7 +536,25 @@ async function addMember(){
   ['nm','rl','kk','pj'].forEach(id=>document.getElementById(id).value='');
   toggleForm();
 }
-async function delMember(i){
+async function editMember(i){
+  const card=document.getElementById('mc'+i);
+  const form=document.getElementById('mef'+i);
+  if(!form) return;
+  const hidden=form.classList.contains('hidden');
+  form.classList.toggle('hidden', !hidden);
+}
+function saveMember(i){
+  members[i]={
+    n: document.getElementById('men'+i).value.trim(),
+    r: document.getElementById('mer'+i).value.trim(),
+    k: document.getElementById('mek'+i).value.trim(),
+    p: document.getElementById('mep'+i).value.trim(),
+  };
+  if(window.fbSet) window.fbSet('config/members', members);
+  renderMembers();
+  rebuildSel();
+}
+function delMember(i){
   if(!confirm(`${members[i].n} 팀원을 삭제할까요?`))return;
   members.splice(i,1);
   if(window.fbSet)await window.fbSet('config/members',members);
@@ -515,6 +562,31 @@ async function delMember(i){
 }
 
 // ── 실시간 현황 ──
+async function loadYesterday(){
+  const user=document.getElementById('userSel').value;
+  if(!user){alert('먼저 작성자를 선택해주세요.');return;}
+  const yesterday=new Date();
+  yesterday.setDate(yesterday.getDate()-1);
+  const ykey=yesterday.toISOString().split('T')[0];
+  const key=user.replace(/[\s.()]/g,'_');
+  const saved=await window.fbGet(`reports/daily/${ykey}/${key}`);
+  if(!saved){alert(`${ykey} 작성 데이터가 없습니다.`);return;}
+  if(!confirm(`${ykey} 데이터를 불러올까요?\n현재 작성 중인 내용이 교체됩니다.`)) return;
+  loadSaved(saved);
+  alert('어제 데이터를 불러왔습니다. 수정 후 저장해주세요.');
+}
+async function loadByDate(){
+  const user=document.getElementById('userSel').value;
+  if(!user){alert('먼저 작성자를 선택해주세요.');return;}
+  const datePick=document.getElementById('loadDatePick').value;
+  if(!datePick){alert('날짜를 선택해주세요.');return;}
+  const key=user.replace(/[\s.()]/g,'_');
+  const saved=await window.fbGet(`reports/daily/${datePick}/${key}`);
+  if(!saved){alert(`${datePick} 작성 데이터가 없습니다.`);return;}
+  if(!confirm(`${datePick} 데이터를 불러올까요?\n현재 작성 중인 내용이 교체됩니다.`)) return;
+  loadSaved(saved);
+  alert(`${datePick} 데이터를 불러왔습니다. 수정 후 저장해주세요.`);
+}
 async function loadLive(){
   const box=document.getElementById('liveBox');
   if(!window.fbGet){box.innerHTML='<span style="color:var(--t3);font-size:11px;">Firebase 미연결</span>';return;}
@@ -947,6 +1019,75 @@ async function doSave(){
 
 // ── Cloud Functions URL ──
 const CLOUD_FN_URL = "https://asia-northeast1-creative-report-e38d7.cloudfunctions.net/generateHWPX";
+
+function togglePreview(){
+  const panel=document.getElementById('previewPanel');
+  const btn=document.getElementById('prevBtn');
+  const isOpen=panel.style.display!=='none';
+  panel.style.display=isOpen?'none':'block';
+  btn.textContent=isOpen?'👁 미리보기':'✕ 미리보기 닫기';
+  if(!isOpen) updatePreview();
+}
+
+function updatePreview(){
+  const panel=document.getElementById('previewPanel');
+  if(panel.style.display==='none') return;
+  const d=getDailyData();
+  const cont=document.getElementById('previewContent');
+  if(!cont) return;
+  
+  let html='';
+  html+=`<div style="background:var(--s2);border-radius:6px;padding:10px;margin-bottom:10px;">`;
+  html+=`<div style="font-weight:700;color:var(--t1);margin-bottom:4px;">📅 ${d.date||''}</div>`;
+  html+=`<div style="color:var(--t3);">작성자: ${d.writer||'미선택'}</div>`;
+  html+='</div>';
+  
+  // 현안이슈
+  if((d.sum_issues||[]).length>0){
+    html+='<div style="font-weight:600;color:var(--ac);margin:8px 0 4px;">2. 현안 및 이슈보고</div>';
+    d.sum_issues.forEach(iss=>{
+      html+=`<div style="color:var(--t1);margin:3px 0;">○ ${iss.project||''}</div>`;
+      (iss.items||[]).forEach(it=>{ html+=`<div style="color:var(--t2);padding-left:12px;">- ${it}</div>`; });
+    });
+  }
+  
+  // 인력동향
+  if((d.manpower||[]).filter(Boolean).length>0){
+    html+='<div style="font-weight:600;color:var(--ac);margin:8px 0 4px;">3. 인력 동향</div>';
+    d.manpower.filter(Boolean).forEach(m=>{ html+=`<div style="color:var(--t2);">○ ${m}</div>`; });
+  }
+  
+  // 주요일정
+  if((d.schedule||[]).length>0){
+    html+='<div style="font-weight:600;color:var(--ac);margin:8px 0 4px;">4. 주요 일정</div>';
+    html+='<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+    html+='<tr style="background:var(--s2);"><th style="padding:4px 6px;border:1px solid var(--bd);">일자</th><th style="padding:4px 6px;border:1px solid var(--bd);">내용</th><th style="padding:4px 6px;border:1px solid var(--bd);">비고</th></tr>';
+    d.schedule.forEach(s=>{
+      html+=`<tr><td style="padding:3px 6px;border:1px solid var(--bd);white-space:nowrap;">${s.date||''}</td><td style="padding:3px 6px;border:1px solid var(--bd);">${s.detail||''}</td><td style="padding:3px 6px;border:1px solid var(--bd);white-space:nowrap;">${s.note||''}</td></tr>`;
+    });
+    html+='</table>';
+  }
+  
+  // 공공사업
+  if((d.biz_details||[]).length>0){
+    html+='<div style="font-weight:600;color:var(--ac);margin:8px 0 4px;">사업별 상세</div>';
+    d.biz_details.forEach(b=>{
+      html+=`<div style="color:var(--t1);margin:3px 0;">▸ ${b.name||''}</div>`;
+      (b.details||[]).forEach(det=>{ html+=`<div style="color:var(--t2);padding-left:12px;">ㆍ${det}</div>`; });
+    });
+  }
+  
+  // 제안
+  if(d.proposal_summary){
+    html+=`<div style="font-weight:600;color:var(--ac);margin:8px 0 4px;">제안</div>`;
+    html+=`<div style="color:var(--t2);">${d.proposal_summary}</div>`;
+  }
+  
+  cont.innerHTML=html||'<div style="color:var(--t3);">작성된 내용이 없습니다.</div>';
+}
+
+// 입력 변경시 미리보기 자동 업데이트
+document.addEventListener('input', ()=>{ if(document.getElementById('previewPanel')?.style.display!=='none') updatePreview(); });
 
 async function doHWP(){
   const btn = document.querySelector('.bhwp');

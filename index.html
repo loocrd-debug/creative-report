@@ -1122,13 +1122,17 @@ function togglePreview(){
   const isOpen=panel.style.display!=='none';
   panel.style.display=isOpen?'none':'block';
   btn.textContent=isOpen?'👁 미리보기':'✕ 미리보기 닫기';
-  if(!isOpen) updatePreview();
+  if(!isOpen){
+    const tab=document.querySelector('.tab.on')?.id;
+    if(tab==='tb-weekly') updateWeeklyPreview();
+    else updatePreview();
+  }
 }
 
 function updatePreview(){
   const panel=document.getElementById('previewPanel');
   if(panel.style.display==='none') return;
-  const activeTab=document.querySelector('.tab.on')?.id;
+  const activeTab=document.querySelector('.tab.on')?.id||document.querySelector('.tab.active')?.id;
   if(activeTab==='tb-weekly'){ updateWeeklyPreview(); return; }
   const d=getDailyData();
   const cont=document.getElementById('previewContent');
@@ -1345,7 +1349,7 @@ function getWeeklyData(){
     appendix: [...document.querySelectorAll('#appendixB .appendix-row')].map(row=>({
       title: row.querySelector('.appendix-title')?.value || '26년도 크리에이티브그룹 인력 운영 현황',
       content: row.querySelector('.appendix-content')?.value||''
-    })).filter(a=>a.content),
+    })),
     savedAt: Date.now()
   };
 }

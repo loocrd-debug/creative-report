@@ -13,7 +13,9 @@ const POS = {
   sumE_pE:15491, manE_pS:16125,
   origS_pE:38109, origE_pS:41987,
   prop_pS:43102, prop_pE:43445,
-  biz_pE:50311, sec_end:62584
+  biz_pE:50311, sec_end:62584,
+  // 제안표 데이터행 셀 위치 (제안명, 담당자, 날짜)
+  prop_row: [[47392,47414],[48197,48218],[49001,49018]]
 };
 
 // 템플릿 (원본 구조 그대로)
@@ -199,6 +201,13 @@ function buildHWPX(data){
 
   // 3. 제안요약
   reps.push([POS.prop_pS, POS.prop_pE, setLastT(TPL.t75,"    - "+(data.proposal_summary||"해당 없음"))]);
+
+  // 3-1. 제안표 데이터행 (첫 번째 제안만 - 원본에 1행)
+  const prop0 = (data.proposals||[])[0]||{};
+  POS.prop_row.forEach(([ps,pe],ci)=>{
+    const vals=[prop0.title||"",prop0.person||"",prop0.date||""];
+    reps.push([ps,pe,"<hp:t>"+ex(vals[ci])+"</hp:t>"]);
+  });
 
   // 4. 원본 현안이슈
   reps.push([POS.origS_pE, POS.origE_pS, makeIssues(data.orig_issues,TPL.t14,TPL.t89)]);

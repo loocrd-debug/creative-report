@@ -685,8 +685,18 @@ async function loadByDate(){
 async function loadLive(){
   const box=document.getElementById('liveBox');
   if(!window.fbGet){box.innerHTML='<span style="color:var(--t3);font-size:11px;">Firebase 미연결</span>';return;}
-  const data=await window.fbGet(`reports/daily/${TKEY}`);
-  renderLive(data?Object.values(data):[]);
+  // 로딩 표시
+  const btn=document.querySelector('[onclick="loadLive()"]');
+  if(btn){btn.textContent='⏳'; btn.disabled=true;}
+  box.innerHTML='<span style="color:var(--t3);font-size:11px;">새로고침 중...</span>';
+  try{
+    const data=await window.fbGet(`reports/daily/${TKEY}`);
+    renderLive(data?Object.values(data):[]);
+    // 주간보고 탭 데이터도 갱신
+    if(document.getElementById('wkDayCards')) renderWeekDays();
+  }finally{
+    if(btn){btn.textContent='↻ 새로고침'; btn.disabled=false;}
+  }
 }
 function renderLive(entries){
   const box=document.getElementById('liveBox');

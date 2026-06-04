@@ -622,30 +622,65 @@ async function loadMerged(){
   finally{ if(btn){ btn.textContent='📋 취합 보기'; btn.disabled=false; } }
 }
 
+// 특정 날짜의 전체 팀원 데이터 취합
+async function mergeDataByKey(dateKey){
+  const allData = await window.fbGet(`reports/daily/${dateKey}`);
+  if(!allData || Object.keys(allData).length===0) return null;
+  const entries = Object.values(allData).filter(Boolean);
+
+  // 모든 팀원 데이터 취합 (순서 그대로, 중복 제거 없음)
+  const merged = {
+    date: TSTR, // 오늘 날짜로
+    writer: '',
+    main_events: entries.flatMap(e=>e.main_events||[]).filter(e=>e.content),
+    orig_issues: entries.flatMap(e=>e.orig_issues||[]).filter(i=>i.project),
+    sum_issues: entries.flatMap(e=>e.sum_issues||[]).filter(i=>i.project),
+    manpower: [...new Set(entries.flatMap(e=>e.manpower||[]).filter(m=>m&&m!=='특이사항 없음'))],
+    schedule: entries.flatMap(e=>e.schedule||[]).filter(s=>s.date||s.detail)
+      .sort((a,b)=>(a.date||'').localeCompare(b.date||'')),
+    biz_details: entries.flatMap(e=>e.biz_details||[]).filter(b=>b.name),
+    proposals: entries.flatMap(e=>e.proposals||[]).filter(p=>p.title),
+    proposal_summary: entries.find(e=>e.proposal_summary)?.proposal_summary||'',
+  };
+  if(merged.manpower.length===0) merged.manpower=['특이사항 없음'];
+  return merged;
+}
+
 async function loadYesterday(){
-  const user=document.getElementById('userSel').value;
-  if(!user){alert('먼저 작성자를 선택해주세요.');return;}
   const yesterday=new Date();
   yesterday.setDate(yesterday.getDate()-1);
   const ykey=yesterday.toISOString().split('T')[0];
-  const key=user.replace(/[\s.()]/g,'_');
-  const saved=await window.fbGet(`reports/daily/${ykey}/${key}`);
-  if(!saved){alert(`${ykey} 작성 데이터가 없습니다.`);return;}
-  if(!confirm(`${ykey} 데이터를 불러올까요?\n현재 작성 중인 내용이 교체됩니다.`)) return;
-  loadSaved(saved);
-  alert('어제 데이터를 불러왔습니다. 수정 후 저장해주세요.');
+
+  const merged = await mergeDataByKey(ykey);
+  if(!merged){ alert(`${ykey} 작성 데이터가 없습니다.`); return; }
+
+  const writers = Object.keys((await window.fbGet(`reports/daily/${ykey}`))||{});
+  window._mergedData = merged;
+  loadSaved(merged);
+
+  // 취합 완료 배너
+  const banner=document.createElement('div');
+  banner.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--ac);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+  banner.textContent=`✅ ${ykey} / ${writers.length}명 취합 완료 — 수정 후 저장하세요`;
+  document.body.appendChild(banner);
+  setTimeout(()=>banner.remove(), 4000);
 }
 async function loadByDate(){
-  const user=document.getElementById('userSel').value;
-  if(!user){alert('먼저 작성자를 선택해주세요.');return;}
   const datePick=document.getElementById('loadDatePick').value;
   if(!datePick){alert('날짜를 선택해주세요.');return;}
-  const key=user.replace(/[\s.()]/g,'_');
-  const saved=await window.fbGet(`reports/daily/${datePick}/${key}`);
-  if(!saved){alert(`${datePick} 작성 데이터가 없습니다.`);return;}
-  if(!confirm(`${datePick} 데이터를 불러올까요?\n현재 작성 중인 내용이 교체됩니다.`)) return;
-  loadSaved(saved);
-  alert(`${datePick} 데이터를 불러왔습니다. 수정 후 저장해주세요.`);
+
+  const merged = await mergeDataByKey(datePick);
+  if(!merged){ alert(`${datePick} 작성 데이터가 없습니다.`); return; }
+
+  const writers = Object.keys((await window.fbGet(`reports/daily/${datePick}`))||{});
+  window._mergedData = merged;
+  loadSaved(merged);
+
+  const banner=document.createElement('div');
+  banner.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--ac);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+  banner.textContent=`✅ ${datePick} / ${writers.length}명 취합 완료 — 수정 후 저장하세요`;
+  document.body.appendChild(banner);
+  setTimeout(()=>banner.remove(), 4000);
 }
 async function loadLive(){
   const box=document.getElementById('liveBox');

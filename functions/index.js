@@ -5,7 +5,7 @@ const ORIG_B64 = "UEsDBBQAAAAAAAAAIQCC8EFHEwAAABMAAAAIAAAAbWltZXR5cGVhcHBsaWNhdG
 
 // 주요일정 각 셀 첫번째 hp:t 위치
 const DATE_T = [4331, 4361]; // 날짜 hp:t 위치
-const CELL_INFO = [[{"type": "t", "pos": [[20005, 20026]]}, {"type": "sc", "s": 20775, "e": 20800, "r": "<hp:run charPrIDRef=\"6\"/>"}, {"type": "sc", "s": 21542, "e": 21568, "r": "<hp:run charPrIDRef=\"68\"/>"}], [{"type": "t", "pos": [[22350, 22371]]}, {"type": "t", "pos": [[23153, 23170], [23475, 23508]]}, {"type": "t", "pos": [[24296, 24312]]}], [{"type": "t", "pos": [[25103, 25124]]}, {"type": "t", "pos": [[25907, 25944]]}, {"type": "t", "pos": [[26729, 26750]]}], [{"type": "t", "pos": [[27541, 27562]]}, {"type": "t", "pos": [[28345, 28392]]}, {"type": "t", "pos": [[29176, 29192]]}], [{"type": "t", "pos": [[29983, 30004]]}, {"type": "t", "pos": [[30787, 30817]]}, {"type": "t", "pos": [[31602, 31618]]}], [{"type": "t", "pos": [[32409, 32426]]}, {"type": "sc", "s": 33175, "e": 33201, "r": "<hp:run charPrIDRef=\"67\"/>"}, {"type": "sc", "s": 33943, "e": 33969, "r": "<hp:run charPrIDRef=\"69\"/>"}]];
+const CELL_INFO = [[{"type": "t", "pos": [[20005, 20026]]}, {"type": "sc", "s": 20775, "e": 20800, "r": "<hp:run charPrIDRef=\"6\"/>"}, {"type": "sc", "s": 21542, "e": 21568, "r": "<hp:run charPrIDRef=\"68\"/>"}], [{"type": "t", "pos": [[22350, 22371]]}, {"type": "t", "pos": [[23153, 23170], [23365, 23706]]}, {"type": "t", "pos": [[24296, 24312]]}], [{"type": "t", "pos": [[25103, 25124]]}, {"type": "t", "pos": [[25907, 25944]]}, {"type": "t", "pos": [[26729, 26750]]}], [{"type": "t", "pos": [[27541, 27562]]}, {"type": "t", "pos": [[28345, 28392]]}, {"type": "t", "pos": [[29176, 29192]]}], [{"type": "t", "pos": [[29983, 30004]]}, {"type": "t", "pos": [[30787, 30817]]}, {"type": "t", "pos": [[31602, 31618]]}], [{"type": "t", "pos": [[32409, 32426]]}, {"type": "sc", "s": 33175, "e": 33201, "r": "<hp:run charPrIDRef=\"67\"/>"}, {"type": "sc", "s": 33943, "e": 33969, "r": "<hp:run charPrIDRef=\"69\"/>"}]];
 
 // 각 섹션 범위
 const POS = {
@@ -352,4 +352,3 @@ exports.generateWeeklyHWPX=functions.region("asia-northeast1").runWith({memory:"
   }catch(e){console.error(e);res.status(500).json({error:e.message});}
 });
 // clean-v18
-// redeploy-prop

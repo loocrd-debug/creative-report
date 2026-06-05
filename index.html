@@ -659,20 +659,27 @@ function loadWeeklySavedData(data){
     const bizList=data.origBiz||[];
     bizList.forEach(b=>{
       addBiz('origBizB');
-      const items=[...bizBox.querySelectorAll('.item')];
-      const item=items[items.length-1];
+      // 마지막으로 추가된 item
+      const allItems=[...bizBox.querySelectorAll('.item')];
+      const item=allItems[allItems.length-1];
       if(!item) return;
-      const inputs=[...item.querySelectorAll('input')];
-      if(inputs[0]) inputs[0].value=b.name||'';
-      (b.details||[]).forEach((det,di)=>{
-        if(di===0 && inputs[1]) inputs[1].value=det;
-        else{
-          // 상세 추가
-          const addBtn=item.querySelector('[onclick*="addDetail"]');
-          if(addBtn) addBtn.click();
-          const newInputs=[...item.querySelectorAll('input')];
-          if(newInputs[di+1]) newInputs[di+1].value=det;
+      // 사업명
+      const nameInp=item.querySelector('.pnm');
+      if(nameInp) nameInp.value=b.name||'';
+      // 세부 항목들
+      const details=b.details||[];
+      details.forEach((det,di)=>{
+        // 현재 있는 input 목록
+        let ilDiv=item.querySelector('[id^="il"]');
+        if(!ilDiv) return;
+        let rows=[...ilDiv.querySelectorAll('.irow')];
+        // 행이 부족하면 추가
+        while(rows.length<=di){
+          addItemRow(ilDiv.id, true);
+          rows=[...ilDiv.querySelectorAll('.irow')];
         }
+        const iitem=rows[di]?.querySelector('.iitem');
+        if(iitem) iitem.value=det;
       });
     });
   }, 150);
@@ -1757,10 +1764,13 @@ async function dlWeeklyHWP(){
       weekRange: d.weekRange||'',
       sumGoal: d.sumGoal||'',
       sumProg: d.sumProg||'',
+      origGoal: d.origGoal||d.sumGoal||'',
+      origProg: d.origProg||d.sumProg||'',
       sum_issues: (d.issues||[]).map(parseIssue),
       proposals: (d.proposals?.list||[]),
       prop_summary: d.proposals?.summary||'',
       proposals2: (d.origProposals?.list||d.proposals?.list||[]),
+      prop2_summary: d.origProposals?.summary||d.proposals?.summary||'',
       collab: d.collab||'- 특이사항 없음',
       biz_details: (d.origBiz||d.biz_details||[]),
       appendix: (d.appendix||[]),

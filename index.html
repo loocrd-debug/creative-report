@@ -1677,9 +1677,7 @@ function getWeeklyData(){
     weekRange: document.getElementById('weekRange')?.value||'',
     sumGoal: document.getElementById('sumGoal')?.value||'',
     sumProg: document.getElementById('sumProg')?.value||'',
-    // 현안이슈 (sumBizR)
-    issues: [...document.querySelectorAll('#sumBizR input[type=text]')].map(i=>i.value).filter(Boolean),
-    // 제안목록 (sPropB)
+    issues: [...document.querySelectorAll('#sumBizR input')].map(i=>i.value).filter(Boolean),
     proposals: {
       summary: document.getElementById('sPropN')?.value||'',
       list: [...document.querySelectorAll('#sPropB tr')].map(tr=>{
@@ -1687,14 +1685,10 @@ function getWeeklyData(){
         return {title:c[0]?.value||'',person:c[1]?.value||'',date:c[2]?.value||''};
       }).filter(r=>r.title)
     },
-    // 인력동향 (sumManR)
-    manpower: [...document.querySelectorAll('#sumManR input[type=text]')].map(i=>i.value).filter(Boolean),
-    // 협업요청 (collab)
+    manpower: [...document.querySelectorAll('#sumManR input')].map(i=>i.value).filter(Boolean),
     collab: document.getElementById('collab')?.value||'',
-    // 원본보고 연간목표/진척
     origGoal: document.getElementById('origGoal')?.value||'',
     origProg: document.getElementById('origProg')?.value||'',
-    // 원본보고 제안 (oPropB)
     origProposals: {
       summary: document.getElementById('oPropN')?.value||'',
       list: [...document.querySelectorAll('#oPropB tr')].map(tr=>{
@@ -1702,9 +1696,9 @@ function getWeeklyData(){
         return {title:c[0]?.value||'',person:c[1]?.value||'',date:c[2]?.value||''};
       }).filter(r=>r.title)
     },
-    // 별첨
+    origManpower: [...document.querySelectorAll('#origManR input')].map(i=>i.value).filter(Boolean),
     appendix: [...document.querySelectorAll('#appendixB .appendix-row')].map(row=>({
-      title: row.querySelector('.appendix-title')?.value || '26년도 크리에이티브그룹 인력 운영 현황',
+      title: row.querySelector('.appendix-title')?.value||'26년도 크리에이티브그룹 인력 운영 현황',
       content: row.querySelector('.appendix-content')?.value||''
     })),
     savedAt: Date.now()

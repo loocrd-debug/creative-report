@@ -301,10 +301,15 @@ const POS_W = {
 };
 const TPL_W = {issue:"<hp:p id=\"2147483648\" paraPrIDRef=\"70\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"43\"><hp:t>   -</hp:t></hp:run><hp:run charPrIDRef=\"44\"><hp:t> [\ud22c\uc785] </hp:t></hp:run><hp:run charPrIDRef=\"43\"><hp:t>\ud074\ub77c\uc6b0\ub4dc \ub124\uc774\ud2f0\ube0c \uc804\ud658(1\ucc28), \uc815\ubd8024 \uc6b4\uc601, \ubc94\uc815\ubd80 \uc11c\ube44\uc2a4 \ud1b5\ud569\ucc3d\uad6c(3\ucc28), </hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"28664\" vertsize=\"1400\" textheight=\"1400\" baseline=\"1190\" spacing=\"420\" horzpos=\"0\" horzsize=\"51024\" flags=\"393216\"/></hp:linesegarray></hp:p>",bizName:"<hp:p id=\"0\" paraPrIDRef=\"55\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"36\"><hp:t>   - </hp:t></hp:run><hp:run charPrIDRef=\"35\"><hp:t>[\ud074\ub77c\uc6b0\ub4dc \ub124\uc774\ud2f0\ube0c \uc804\ud658] </hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"43849\" vertsize=\"1400\" textheight=\"1400\" baseline=\"1190\" spacing=\"560\" horzpos=\"0\" horzsize=\"51024\" flags=\"393216\"/></hp:linesegarray></hp:p>",bizDetail:"<hp:p id=\"2147483648\" paraPrIDRef=\"56\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"45\"><hp:t>     \u00b7 \uc548\ub0b4\ubbfc\uc6d0 \uac80\uc99d \ubc0f \uc218\uc815 \uc791\uc5c5</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"46309\" vertsize=\"1400\" textheight=\"1400\" baseline=\"1190\" spacing=\"840\" horzpos=\"0\" horzsize=\"51024\" flags=\"393216\"/></hp:linesegarray></hp:p>"};
 
+// 페이지1 제안표 단일 데이터행 템플릿 (원본에서 추출)
+let P1_ROW_TPL="";
+
 function buildWeeklyHWPX(data){
   const origBuf=Buffer.from(WEEKLY_B64,"base64");
   let xml=readZip(origBuf,"Contents/section0.xml").toString("utf-8");
   const reps=[];
+  // 제안표 단일 행 템플릿 추출 (17933~20362)
+  P1_ROW_TPL=xml.slice(17933,20362);
   const rep=data.reporter||"";
   reps.push([POS_W.reporter1[0],POS_W.reporter1[1],"<hp:t>보고자 : "+ex(rep)+"</hp:t>"]);
   reps.push([POS_W.reporter2[0],POS_W.reporter2[1],"<hp:t>보고자 : "+ex(rep)+"</hp:t>"]);
@@ -369,19 +374,27 @@ function buildWeeklyHWPX(data){
     : "     · 해당 없음";
   reps.push([POS_W.prop_sum[0],POS_W.prop_sum[1],"<hp:t>"+propSumRaw+"</hp:t>"]);
 
-  // 페이지1 제안표 - 여러 건이면 줄바꿈으로 합치기
+  // 페이지1 제안표 - 첫 행 교체 + 추가 행 삽입
   const allProps=data.proposals||[];
-  const nl="\n";
-  const p1vals=[
-    allProps.map(p=>p.title||"").filter(Boolean).join(nl),
-    allProps.map(p=>p.person||"").filter(Boolean).join(nl),
-    allProps.map(p=>p.date||"").filter(Boolean).join(nl),
-  ];
+  const prop0=allProps[0]||{};
   POS_W.p1_r1.forEach(([ps,pe],ci)=>{
-    reps.push([ps,pe,"<hp:t>"+ex(p1vals[ci]||"")+"</hp:t>"]);
+    const vals=[prop0.title||"",prop0.person||"",prop0.date||""];
+    reps.push([ps,pe,"<hp:t>"+ex(vals[ci])+"</hp:t>"]);
   });
-  // 제안표 아래 빈 p 제거
-  reps.push([20608,20908,""]);
+  // 2번째 이후 제안: 행 복사해서 삽입 (20362 위치에 추가)
+  if(allProps.length>1){
+    const extraRows=allProps.slice(1).map(p=>{
+      let row=P1_ROW_TPL;
+      const cells=row.match(/<hp:subList[^>]*>[\s\S]*?<\/hp:subList>/g)||[];
+      const vals=[p.title||"",p.person||"",p.date||""];
+      cells.slice(0,3).forEach((cell,ci)=>{
+        const tMatch=cell.match(/<hp:t>[^<]*<\/hp:t>/);
+        if(tMatch) row=row.replace(tMatch[0],"<hp:t>"+ex(vals[ci])+"</hp:t>");
+      });
+      return row;
+    }).join("");
+    reps.push([20362,20362,extraRows]); // 기존 데이터행 끝에 삽입
+  }
   reps.push([POS_W.collab[0],POS_W.collab[1],"<hp:t>"+ex(data.collab||"- 특이사항 없음")+"</hp:t>"]);
   [POS_W.p2_r1,POS_W.p2_r2].forEach((rowCells,ri)=>{
     const p=(data.proposals2||[])[ri]||{};

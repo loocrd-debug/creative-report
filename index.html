@@ -578,35 +578,40 @@ async function delMember(i){
 // 주간보고 저장 데이터 화면 로드
 function loadWeeklySavedData(data){
   if(!data) return;
-  // 기본 필드 복원
-  const fieldMap = {
+
+  // 1. 텍스트 필드
+  const fmap = {
     'reporter': data.reporter,
+    'weekRange': data.weekRange,
     'sumGoal': data.sumGoal,
     'sumProg': data.sumProg,
     'wkCollab': data.collab,
-    'weekRange': data.weekRange,
-    'wkPropSum': data.proposals?.summary || '',
+    'wkPropSum': data.proposals?.summary||'',
   };
-  Object.entries(fieldMap).forEach(([id,val])=>{
+  Object.entries(fmap).forEach(([id,val])=>{
     const el=document.getElementById(id);
-    if(el && val!=null) el.value=val;
+    if(el && val) el.value=val;
   });
-  // 업무 진행 사항 (wkIssueB)
-  const issueBox=document.getElementById('wkIssueB');
-  const issues=data.issues||[];
-  if(issueBox && issues.length>0){
-    [...issueBox.querySelectorAll('tr')].forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
+
+  // 2. 업무 진행 사항 (wkIssueB) - issues 배열
+  setTimeout(()=>{
+    const issueBox=document.getElementById('wkIssueB');
+    if(!issueBox) return;
+    const issues=data.issues||[];
+    [...issueBox.querySelectorAll('tr')].forEach(r=>r.querySelectorAll('input').forEach(inp=>inp.value=''));
     issues.forEach((val,i)=>{
       let row=issueBox.querySelectorAll('tr')[i];
       if(!row){ addTR('wkIssueB'); row=issueBox.querySelectorAll('tr')[i]; }
-      if(row){ const inp=row.querySelector('input'); if(inp) inp.value=val; }
+      if(row){ const inp=row.querySelector('input'); if(inp) inp.value=val||''; }
     });
-  }
-  // 제안목록 (wkPropB)
-  const propBox=document.getElementById('wkPropB');
-  const props=Array.isArray(data.proposals)?data.proposals:(data.proposals?.list||[]);
-  if(propBox && props.length>0){
-    [...propBox.querySelectorAll('tr')].forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
+  }, 50);
+
+  // 3. 제안목록 (wkPropB) - proposals.list 배열
+  setTimeout(()=>{
+    const propBox=document.getElementById('wkPropB');
+    if(!propBox) return;
+    const props=(data.proposals?.list||[]).filter(p=>p.title);
+    [...propBox.querySelectorAll('tr')].forEach(r=>r.querySelectorAll('input').forEach(inp=>inp.value=''));
     props.forEach((p,i)=>{
       let row=propBox.querySelectorAll('tr')[i];
       if(!row){ addTR('wkPropB'); row=propBox.querySelectorAll('tr')[i]; }
@@ -616,12 +621,14 @@ function loadWeeklySavedData(data){
       if(c[1]) c[1].value=p.person||'';
       if(c[2]) c[2].value=p.date||'';
     });
-  }
-  // 일정 (wkSchedB)
-  const schedBox=document.getElementById('wkSchedB');
-  const scheds=data.schedule||[];
-  if(schedBox && scheds.length>0){
-    [...schedBox.querySelectorAll('tr')].forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
+  }, 50);
+
+  // 4. 주요일정 (wkSchedB)
+  setTimeout(()=>{
+    const schedBox=document.getElementById('wkSchedB');
+    if(!schedBox) return;
+    const scheds=(data.schedule||[]).filter(s=>s.date||s.detail);
+    [...schedBox.querySelectorAll('tr')].forEach(r=>r.querySelectorAll('input').forEach(inp=>inp.value=''));
     scheds.forEach((s,i)=>{
       let row=schedBox.querySelectorAll('tr')[i];
       if(!row){ addTR('wkSchedB'); row=schedBox.querySelectorAll('tr')[i]; }
@@ -631,8 +638,9 @@ function loadWeeklySavedData(data){
       if(c[1]) c[1].value=s.detail||'';
       if(c[2]) c[2].value=s.note||'';
     });
-  }
-  setTimeout(updateWeeklyPreview, 100);
+  }, 50);
+
+  setTimeout(updateWeeklyPreview, 200);
 }
 
 async function loadWeeklySaved(){

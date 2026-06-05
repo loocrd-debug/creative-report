@@ -103,103 +103,56 @@ function readZip(zipBuf, filename){
 }
 
 // ZIP에서 파일 교체
-// ZIP 파일에서 특정 파일 교체 (Node.js zlib 직접 방식)
+// ZIP 파일에서 특정 파일 교체 - 모든 파일 비압축(STORED) 방식
 function patchZip(zipBuf, filename, newXmlStr) {
   const newData = Buffer.from(newXmlStr, "utf-8");
-  const compressed = zlib.deflateRawSync(newData);
   const newCrc = crc32(newData);
-  
-  const parts = [];
-  const cdEntries = [];
+  const parts = [], cdEntries = [];
   let offset = 0;
   const v = new DataView(zipBuf.buffer || zipBuf);
   let o = 0;
-  
   while (o < zipBuf.length - 4) {
     const sig = v.getUint32(o, true);
     if (sig !== 0x04034b50) break;
-    
     const mt = v.getUint16(o+8, true);
-    let crc = v.getUint32(o+14, true);
-    let cs = v.getUint32(o+18, true);
-    let us = v.getUint32(o+22, true);
+    const crc = v.getUint32(o+14, true);
+    const cs = v.getUint32(o+18, true);
     const nl = v.getUint16(o+26, true);
     const xl = v.getUint16(o+28, true);
     const fn = zipBuf.slice(o+30, o+30+nl).toString("utf-8");
-    const dOff = o + 30 + nl + xl;
-    
-    let fileData, fileCrc, fileCs, fileUs, fileMt;
-    if (fn === filename) {
-      fileData = compressed;
-      fileCrc = newCrc;
-      fileCs = compressed.length;
-      fileUs = newData.length;
-      fileMt = 8;
-    } else {
-      fileData = zipBuf.slice(dOff, dOff + cs);
-      fileCrc = crc;
-      fileCs = cs;
-      fileUs = us;
-      fileMt = mt;
-    }
-    
-    // 로컬 파일 헤더 생성
-    const hdr = Buffer.alloc(30 + nl);
+    const dOff = o+30+nl+xl;
+    // 원본 데이터 압축 해제 후 비압축으로 저장
+    const compData = zipBuf.slice(dOff, dOff+cs);
+    const rawData = (fn === filename) ? newData : ((mt === 8) ? zlib.inflateRawSync(compData) : compData);
+    const fileCrc = (fn === filename) ? newCrc : crc32(rawData);
+    const fileSize = rawData.length;
+    // 로컬 파일 헤더 (비압축 STORED)
+    const hdr = Buffer.alloc(30+nl);
     hdr.writeUInt32LE(0x04034b50, 0);
-    hdr.writeUInt16LE(20, 4);          // version needed
-    hdr.writeUInt16LE(0, 6);           // flags (0 = 데이터디스크립터 없음)
-    hdr.writeUInt16LE(fileMt, 8);
-    hdr.writeUInt16LE(0, 10);          // mod time
-    hdr.writeUInt16LE(0, 12);          // mod date
-    hdr.writeUInt32LE(fileCrc, 14);
-    hdr.writeUInt32LE(fileCs, 18);
-    hdr.writeUInt32LE(fileUs, 22);
-    hdr.writeUInt16LE(nl, 26);
-    hdr.writeUInt16LE(0, 28);
+    hdr.writeUInt16LE(20, 4); hdr.writeUInt16LE(0, 6); hdr.writeUInt16LE(0, 8);
+    hdr.writeUInt16LE(0, 10); hdr.writeUInt16LE(0, 12);
+    hdr.writeUInt32LE(fileCrc, 14); hdr.writeUInt32LE(fileSize, 18); hdr.writeUInt32LE(fileSize, 22);
+    hdr.writeUInt16LE(nl, 26); hdr.writeUInt16LE(0, 28);
     zipBuf.copy(hdr, 30, o+30, o+30+nl);
-    
-    cdEntries.push({ fn, nl, mt: fileMt, crc: fileCrc, cs: fileCs, us: fileUs, off: offset });
-    parts.push(hdr);
-    parts.push(Buffer.from(fileData));
-    offset += hdr.length + fileData.length;
+    cdEntries.push({fn, nl, crc: fileCrc, size: fileSize, off: offset});
+    parts.push(hdr); parts.push(rawData);
+    offset += hdr.length + rawData.length;
     o = dOff + cs;
   }
-  
-  // Central Directory 생성
   const cdBufs = cdEntries.map(e => {
-    const cd = Buffer.alloc(46 + e.nl);
-    cd.writeUInt32LE(0x02014b50, 0);
-    cd.writeUInt16LE(20, 4);
-    cd.writeUInt16LE(20, 6);
-    cd.writeUInt16LE(0, 8);            // flags
-    cd.writeUInt16LE(e.mt, 10);
-    cd.writeUInt16LE(0, 12);           // mod time
-    cd.writeUInt16LE(0, 14);           // mod date
-    cd.writeUInt32LE(e.crc, 16);
-    cd.writeUInt32LE(e.cs, 20);
-    cd.writeUInt32LE(e.us, 24);
-    cd.writeUInt16LE(e.nl, 28);
-    cd.writeUInt16LE(0, 30);           // extra length
-    cd.writeUInt16LE(0, 32);           // comment length
-    cd.writeUInt16LE(0, 34);           // disk start
-    cd.writeUInt16LE(0, 36);           // int attr
-    cd.writeUInt32LE(0, 38);           // ext attr
-    cd.writeUInt32LE(e.off, 42);
-    Buffer.from(e.fn).copy(cd, 46);
-    return cd;
+    const cd = Buffer.alloc(46+e.nl);
+    cd.writeUInt32LE(0x02014b50,0); cd.writeUInt16LE(20,4); cd.writeUInt16LE(20,6);
+    cd.writeUInt16LE(0,8); cd.writeUInt16LE(0,10); cd.writeUInt16LE(0,12); cd.writeUInt16LE(0,14);
+    cd.writeUInt32LE(e.crc,16); cd.writeUInt32LE(e.size,20); cd.writeUInt32LE(e.size,24);
+    cd.writeUInt16LE(e.nl,28); cd.writeUInt16LE(0,30); cd.writeUInt16LE(0,32);
+    cd.writeUInt16LE(0,34); cd.writeUInt16LE(0,36); cd.writeUInt32LE(0,38); cd.writeUInt32LE(e.off,42);
+    Buffer.from(e.fn).copy(cd,46); return cd;
   });
-  
   const cdBuf = Buffer.concat(cdBufs);
   const eocd = Buffer.alloc(22);
-  eocd.writeUInt32LE(0x06054b50, 0);
-  eocd.writeUInt16LE(0, 4);
-  eocd.writeUInt16LE(0, 6);
-  eocd.writeUInt16LE(cdEntries.length, 8);
-  eocd.writeUInt16LE(cdEntries.length, 10);
-  eocd.writeUInt32LE(cdBuf.length, 12);
-  eocd.writeUInt32LE(offset, 16);
-  eocd.writeUInt16LE(0, 20);
-  
+  eocd.writeUInt32LE(0x06054b50,0); eocd.writeUInt16LE(0,4); eocd.writeUInt16LE(0,6);
+  eocd.writeUInt16LE(cdEntries.length,8); eocd.writeUInt16LE(cdEntries.length,10);
+  eocd.writeUInt32LE(cdBuf.length,12); eocd.writeUInt32LE(offset,16); eocd.writeUInt16LE(0,20);
   return Buffer.concat([...parts, cdBuf, eocd]);
 }
 

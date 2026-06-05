@@ -646,7 +646,9 @@ function loadWeeklySavedData(data){
 async function loadWeeklySaved(){
   if(!window.fbGet) return;
   const wKey=WEEK_KEYS[0];
-  const saved=await window.fbGet(`reports/weekly/${wKey}`);
+  let saved=await window.fbGet(`reports/weekly/${wKey}`);
+  // 이번주 월요일 키로 없으면 오늘 날짜 키도 시도
+  if(!saved) saved=await window.fbGet(`reports/weekly/${TKEY}`);
   if(saved) loadWeeklySavedData(saved);
 }
 
@@ -1428,7 +1430,7 @@ function updatePreview(){
   }
 
   // ── 제안목록 ──
-  const props=(d.proposals||[]).filter(p=>p.title);
+  const props=(Array.isArray(d.proposals)?d.proposals:(d.proposals?.list||[])).filter(p=>p.title);
   if(props.length>0){
     h+=`<div style="font-weight:600;color:var(--ac);margin:6px 0 3px;font-size:11px;">제안 목록</div>`;
     h+=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:4px;">`;
@@ -1468,7 +1470,7 @@ function updateWeeklyPreview(){
   }
 
   // 제안
-  const props=(d.proposals||[]).filter(p=>p.title);
+  const props=(Array.isArray(d.proposals)?d.proposals:(d.proposals?.list||[])).filter(p=>p.title);
   if(props.length>0){
     h+=`<div style="color:var(--t2);font-size:10px;padding-left:4px;margin-top:4px;">- [제안목록]</div>`;
     props.forEach(p=>{ h+=`<div style="color:var(--t3);font-size:10px;padding-left:12px;">${p.title} / ${p.person} / ${p.date}</div>`; });

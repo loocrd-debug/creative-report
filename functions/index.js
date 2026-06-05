@@ -357,9 +357,11 @@ function buildWeeklyHWPX(data){
     return nameRow+(b.details||[]).map(d=>setLastT(TPL_W.bizDetail,d)).join("");
   }).join("");
   reps.push([POS_W.biz_s,POS_W.biz_e,bizXml]);
-  // 별첨 섹션: 없으면 제거 (23319~113003), 있으면 유지
+  // 별첨 섹션: 없으면 제거, 있으면 유지
+  // 23319: 별첨 텍스트 p 시작, 25796: 실제 별첨 표 시작
+  // 별첨 제거 시 표(25796~81995) 전체 포함해서 제거
   if(!data.appendix||data.appendix.length===0){
-    reps.push([23319,113003,""]); // 별첨 섹션 전체 제거
+    reps.push([22281,82204,""]); // 별첨 전체 제거 (22281~82204)
   }
   reps.sort((a,b)=>b[0]-a[0]);
   for(const [f,t,c] of reps) xml=xml.slice(0,f)+c+xml.slice(t);

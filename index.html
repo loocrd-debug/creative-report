@@ -621,6 +621,8 @@ function loadWeeklySavedData(data){
   setTimeout(()=>{
     const propBox=document.getElementById('sPropB');
     if(!propBox) return;
+    const existingProp=[...propBox.querySelectorAll('tr')].some(r=>[...r.querySelectorAll('input')].some(i=>i.value));
+    if(existingProp) return; // 이미 내용 있으면 스킵
     const props=(data.proposals?.list||[]).filter(p=>p.title);
     [...propBox.querySelectorAll('tr')].forEach(r=>r.querySelectorAll('input').forEach(inp=>inp.value=''));
     props.forEach((p,i)=>{
@@ -655,7 +657,7 @@ function loadWeeklySavedData(data){
   setTimeout(()=>{
     const bizBox=document.getElementById('origBizB');
     if(!bizBox) return;
-    bizBox.innerHTML='';
+    if(bizBox.querySelectorAll('.item').length>0) return; // 이미 내용 있으면 스킵
     const bizList=data.origBiz||[];
     bizList.forEach(b=>{
       addBiz('origBizB');
@@ -682,9 +684,12 @@ function loadWeeklySavedData(data){
 
 async function loadWeeklySaved(){
   if(!window.fbGet) return;
+  // 이미 화면에 작성 중인 내용이 있으면 로드하지 않음
+  const reporterVal = document.getElementById('reporter')?.value;
+  const sumGoalVal = document.getElementById('sumGoal')?.value;
+  if(reporterVal && sumGoalVal) return; // 이미 데이터 있음
   const wKey=WEEK_KEYS[0];
   let saved=await window.fbGet(`reports/weekly/${wKey}`);
-  // 이번주 월요일 키로 없으면 오늘 날짜 키도 시도
   if(!saved) saved=await window.fbGet(`reports/weekly/${TKEY}`);
   if(saved) loadWeeklySavedData(saved);
 }

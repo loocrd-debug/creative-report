@@ -1706,14 +1706,25 @@ function getWeeklyData(){
 }
 
 async function dlWeeklyHWP(){
-  const d = getWeeklyData();
+  // Firebase에서 직접 읽기 (화면 DOM 대신)
+  const wKey = WEEK_KEYS[0];
+  let d = await window.fbGet(`reports/weekly/${wKey}`);
+  if(!d) d = await window.fbGet(`reports/weekly/${TKEY}`);
+  if(!d){ alert('저장된 주간보고 데이터가 없습니다. 먼저 저장해주세요.'); return; }
   const btn = document.querySelector('.bhwp');
   if(btn){ btn.textContent='⏳ 생성 중...'; btn.disabled=true; }
   try{
     const res = await fetch(CLOUD_FN_URL.replace('generateHWPX','generateWeeklyHWPX'),{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({data: d})
+      body: JSON.stringify({data: {
+        reporter: d.reporter||'',
+        sum_issues: (d.issues||[]).map(content=>({label:'', content})),
+        proposals: (d.proposals?.list||[]),
+        proposals2: (d.proposals?.list||[]),
+        collab: d.collab||'- 특이사항 없음',
+        biz_details: (d.biz_details||[]),
+      }})
     });
     if(!res.ok) throw new Error('서버 오류: '+res.status);
     const blob = await res.blob();

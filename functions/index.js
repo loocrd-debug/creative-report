@@ -438,7 +438,7 @@ async function buildWeeklyHWPX(data){
   }
   reps.sort((a,b)=>b[0]-a[0]);
   for(const [f,t,c] of reps) xml=xml.slice(0,f)+c+xml.slice(t);
-    wzip.file("Contents/section0.xml", xml, {compression:"DEFLATE"});
+  wzip.file("Contents/section0.xml", xml, {compression:"DEFLATE"});
   return await wzip.generateAsync({type:"nodebuffer", mimeType:"application/hwp+zip"});
 }
 
@@ -458,4 +458,3 @@ exports.generateWeeklyHWPX=functions.region("asia-northeast1").runWith({memory:"
   }catch(e){console.error(e);res.status(500).json({error:e.message});}
 });
 // clean-v18
-// jszip-redeploy

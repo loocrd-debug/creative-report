@@ -121,20 +121,19 @@ function patchZip(zipBuf, filename, newXmlStr) {
     const xl = v.getUint16(o+28, true);
     const fn = zipBuf.slice(o+30, o+30+nl).toString("utf-8");
     const dOff = o+30+nl+xl;
-    // 원본 데이터 압축 해제 후 비압축으로 저장
+    // 원본 압축 해제 후 비압축으로 저장
     const compData = zipBuf.slice(dOff, dOff+cs);
     const rawData = (fn === filename) ? newData : ((mt === 8) ? zlib.inflateRawSync(compData) : compData);
     const fileCrc = (fn === filename) ? newCrc : crc32(rawData);
     const fileSize = rawData.length;
-    // 로컬 파일 헤더 (비압축 STORED)
+    // 로컬 헤더 (STORED)
     const hdr = Buffer.alloc(30+nl);
-    hdr.writeUInt32LE(0x04034b50, 0);
-    hdr.writeUInt16LE(20, 4); hdr.writeUInt16LE(0, 6); hdr.writeUInt16LE(0, 8);
-    hdr.writeUInt16LE(0, 10); hdr.writeUInt16LE(0, 12);
-    hdr.writeUInt32LE(fileCrc, 14); hdr.writeUInt32LE(fileSize, 18); hdr.writeUInt32LE(fileSize, 22);
-    hdr.writeUInt16LE(nl, 26); hdr.writeUInt16LE(0, 28);
-    zipBuf.copy(hdr, 30, o+30, o+30+nl);
-    cdEntries.push({fn, nl, crc: fileCrc, size: fileSize, off: offset});
+    hdr.writeUInt32LE(0x04034b50,0); hdr.writeUInt16LE(20,4); hdr.writeUInt16LE(0,6);
+    hdr.writeUInt16LE(0,8); hdr.writeUInt16LE(0,10); hdr.writeUInt16LE(0,12);
+    hdr.writeUInt32LE(fileCrc,14); hdr.writeUInt32LE(fileSize,18); hdr.writeUInt32LE(fileSize,22);
+    hdr.writeUInt16LE(nl,26); hdr.writeUInt16LE(0,28);
+    zipBuf.copy(hdr,30,o+30,o+30+nl);
+    cdEntries.push({fn,nl,crc:fileCrc,size:fileSize,off:offset});
     parts.push(hdr); parts.push(rawData);
     offset += hdr.length + rawData.length;
     o = dOff + cs;

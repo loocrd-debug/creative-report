@@ -587,8 +587,11 @@ function loadWeeklySavedData(data){
     'weekRange': data.weekRange,
     'sumGoal': data.sumGoal,
     'sumProg': data.sumProg,
-    'wkCollab': data.collab,
-    'wkPropSum': data.proposals?.summary||'',
+    'collab': data.collab,
+    'sPropN': data.proposals?.summary||'',
+    'origGoal': data.origGoal,
+    'origProg': data.origProg,
+    'oPropN': data.origProposals?.summary||'',
   };
   Object.entries(fmap).forEach(([id,val])=>{
     const el=document.getElementById(id);
@@ -597,26 +600,32 @@ function loadWeeklySavedData(data){
 
   // 2. 업무 진행 사항 (wkIssueB) - issues 배열
   setTimeout(()=>{
-    const issueBox=document.getElementById('wkIssueB');
+    const issueBox=document.getElementById('sumBizR');
     if(!issueBox) return;
     const issues=data.issues||[];
-    [...issueBox.querySelectorAll('tr')].forEach(r=>r.querySelectorAll('input').forEach(inp=>inp.value=''));
+    // 기존 행 초기화
+    [...issueBox.querySelectorAll('.brow')].forEach(r=>{ const inp=r.querySelector('input'); if(inp) inp.value=''; });
     issues.forEach((val,i)=>{
-      let row=issueBox.querySelectorAll('tr')[i];
-      if(!row){ addTR('wkIssueB'); row=issueBox.querySelectorAll('tr')[i]; }
-      if(row){ const inp=row.querySelector('input'); if(inp) inp.value=val||''; }
+      let rows=[...issueBox.querySelectorAll('.brow')];
+      if(!rows[i]){
+        // 행 추가
+        const btn=issueBox.parentElement?.querySelector('[onclick*="sumBizR"]');
+        if(btn) btn.click();
+        rows=[...issueBox.querySelectorAll('.brow')];
+      }
+      if(rows[i]){ const inp=rows[i].querySelector('input'); if(inp) inp.value=val||''; }
     });
   }, 50);
 
   // 3. 제안목록 (wkPropB) - proposals.list 배열
   setTimeout(()=>{
-    const propBox=document.getElementById('wkPropB');
+    const propBox=document.getElementById('sPropB');
     if(!propBox) return;
     const props=(data.proposals?.list||[]).filter(p=>p.title);
     [...propBox.querySelectorAll('tr')].forEach(r=>r.querySelectorAll('input').forEach(inp=>inp.value=''));
     props.forEach((p,i)=>{
       let row=propBox.querySelectorAll('tr')[i];
-      if(!row){ addTR('wkPropB'); row=propBox.querySelectorAll('tr')[i]; }
+      if(!row){ addTR('sPropB'); row=propBox.querySelectorAll('tr')[i]; }
       if(!row) return;
       const c=row.querySelectorAll('input');
       if(c[0]) c[0].value=p.title||'';
@@ -1668,23 +1677,32 @@ function getWeeklyData(){
     weekRange: document.getElementById('weekRange')?.value||'',
     sumGoal: document.getElementById('sumGoal')?.value||'',
     sumProg: document.getElementById('sumProg')?.value||'',
-    issues: [...document.querySelectorAll('#wkIssueB input[type=text]')].map(i=>i.value).filter(Boolean),
+    // 현안이슈 (sumBizR)
+    issues: [...document.querySelectorAll('#sumBizR input[type=text]')].map(i=>i.value).filter(Boolean),
+    // 제안목록 (sPropB)
     proposals: {
-      summary: document.getElementById('wkPropSum')?.value||'',
-      list: [...document.querySelectorAll('#wkPropB tr')].map(tr=>{
+      summary: document.getElementById('sPropN')?.value||'',
+      list: [...document.querySelectorAll('#sPropB tr')].map(tr=>{
         const c=tr.querySelectorAll('input');
         return {title:c[0]?.value||'',person:c[1]?.value||'',date:c[2]?.value||''};
       }).filter(r=>r.title)
     },
-    biz: [...document.querySelectorAll('#wkBizB .item')].map(item=>{
-      const inputs=[...item.querySelectorAll('input')];
-      return {name:inputs[0]?.value||'',details:inputs.slice(1).map(i=>i.value).filter(Boolean)};
-    }).filter(b=>b.name),
-    schedule: [...document.querySelectorAll('#wkSchedB tr')].map(tr=>{
-      const c=tr.querySelectorAll('input');
-      return {date:c[0]?.value||'',detail:c[1]?.value||'',note:c[2]?.value||''};
-    }).filter(r=>r.date||r.detail),
-    collab: document.getElementById('wkCollab')?.value||'',
+    // 인력동향 (sumManR)
+    manpower: [...document.querySelectorAll('#sumManR input[type=text]')].map(i=>i.value).filter(Boolean),
+    // 협업요청 (collab)
+    collab: document.getElementById('collab')?.value||'',
+    // 원본보고 연간목표/진척
+    origGoal: document.getElementById('origGoal')?.value||'',
+    origProg: document.getElementById('origProg')?.value||'',
+    // 원본보고 제안 (oPropB)
+    origProposals: {
+      summary: document.getElementById('oPropN')?.value||'',
+      list: [...document.querySelectorAll('#oPropB tr')].map(tr=>{
+        const c=tr.querySelectorAll('input');
+        return {title:c[0]?.value||'',person:c[1]?.value||'',date:c[2]?.value||''};
+      }).filter(r=>r.title)
+    },
+    // 별첨
     appendix: [...document.querySelectorAll('#appendixB .appendix-row')].map(row=>({
       title: row.querySelector('.appendix-title')?.value || '26년도 크리에이티브그룹 인력 운영 현황',
       content: row.querySelector('.appendix-content')?.value||''

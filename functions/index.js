@@ -453,3 +453,4 @@ exports.generateWeeklyHWPX=functions.region("asia-northeast1").runWith({memory:"
 // stored-fix
 // stored-final
 // stored-redeploy
+// stored-clean-deploy

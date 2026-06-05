@@ -239,6 +239,8 @@ async function buildHWPX(data){
   for(const [f,t,c] of reps) xml=xml.slice(0,f)+c+xml.slice(t);
 
     zip.file("Contents/section0.xml", xml, {compression:"DEFLATE"});
+  // JSZip이 자동 추가하는 빈 디렉토리 항목 제거 (한글에서 손상 오류 원인)
+  delete zip.files["Contents/"];
   return await zip.generateAsync({type:"nodebuffer", mimeType:"application/hwp+zip"});
 }
 
@@ -439,6 +441,8 @@ async function buildWeeklyHWPX(data){
   reps.sort((a,b)=>b[0]-a[0]);
   for(const [f,t,c] of reps) xml=xml.slice(0,f)+c+xml.slice(t);
   wzip.file("Contents/section0.xml", xml, {compression:"DEFLATE"});
+  // JSZip이 자동 추가하는 빈 디렉토리 항목 제거 (한글에서 손상 오류 원인)
+  delete wzip.files["Contents/"];
   return await wzip.generateAsync({type:"nodebuffer", mimeType:"application/hwp+zip"});
 }
 
@@ -458,4 +462,3 @@ exports.generateWeeklyHWPX=functions.region("asia-northeast1").runWith({memory:"
   }catch(e){console.error(e);res.status(500).json({error:e.message});}
 });
 // clean-v18
-// indent-fix

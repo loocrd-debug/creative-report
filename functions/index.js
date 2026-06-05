@@ -433,7 +433,7 @@ function buildWeeklyHWPX(data){
   return patchZip(origBuf, "Contents/section0.xml", xml);
 }
 
-exports.generateWeeklyHWPX=functions.region("asia-northeast1").runWith({memory:"512MB",timeoutSeconds:60}).https.onRequest(async(req,res)=>{
+exports.generateWeeklyHWPX2=functions.region("asia-northeast1").runWith({memory:"512MB",timeoutSeconds:60}).https.onRequest(async(req,res)=>{
   res.set("Access-Control-Allow-Origin","*");
   res.set("Access-Control-Allow-Methods","POST,OPTIONS");
   res.set("Access-Control-Allow-Headers","Content-Type");

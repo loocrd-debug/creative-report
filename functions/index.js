@@ -309,17 +309,33 @@ function buildWeeklyHWPX(data){
   reps.push([POS_W.reporter1[0],POS_W.reporter1[1],"<hp:t>보고자 : "+ex(rep)+"</hp:t>"]);
   reps.push([POS_W.reporter2[0],POS_W.reporter2[1],"<hp:t>보고자 : "+ex(rep)+"</hp:t>"]);
 
-  // 연간목표 (3줄)
+  // 페이지1 연간목표 (3줄)
   const goalLines=(data.sumGoal||"").split("\n").map(s=>s.trim()).filter(Boolean);
   [[8588,8623],[8939,8980],[9299,9336]].forEach(([ps,pe],i)=>{
     reps.push([ps,pe,"<hp:t>"+ex(goalLines[i]||"")+"</hp:t>"]);
   });
 
-  // 진척사항 (2줄)
+  // 페이지1 진척사항 (2줄)
   const progLines=(data.sumProg||"").split("\n").map(s=>s.trim()).filter(Boolean);
   [[10128,10154],[10470,10506]].forEach(([ps,pe],i)=>{
     reps.push([ps,pe,"<hp:t>"+ex(progLines[i]||"")+"</hp:t>"]);
   });
+
+  // 페이지2 연간목표 (3줄) - origGoal 사용
+  const origGoalLines=(data.origGoal||data.sumGoal||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  [[87577,87612],[87928,87969],[88288,88325]].forEach(([ps,pe],i)=>{
+    reps.push([ps,pe,"<hp:t>"+ex(origGoalLines[i]||"")+"</hp:t>"]);
+  });
+
+  // 페이지2 진척사항 (2줄) - origProg 사용
+  const origProgLines=(data.origProg||data.sumProg||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  [[89117,89143],[89459,89495]].forEach(([ps,pe],i)=>{
+    reps.push([ps,pe,"<hp:t>"+ex(origProgLines[i]||"")+"</hp:t>"]);
+  });
+
+  // 페이지2 제안요약 (91331~91363) - prop2_summary 사용
+  const prop2SumText=ex(data.prop2_summary||data.prop_summary||"");
+  if(prop2SumText) reps.push([91331,91363,"<hp:t>     · "+prop2SumText+"</hp:t>"]);
 
   // 이슈행 최대 4개 (초과분은 마지막 행에 이어붙임)
   const allIssues=data.sum_issues||[];
@@ -347,14 +363,22 @@ function buildWeeklyHWPX(data){
 
   // 제안요약 교체
   // 제안요약 - Firebase proposals.summary 우선 사용
+  // 페이지1 제안요약 - prop_summary 우선 사용
   const propSumRaw = data.proposals&&data.proposals.length>0
-    ? (data.prop_summary||("     · "+ex(data.proposals.length)+"건 진행 예정"))
+    ? ("     · "+(data.prop_summary||ex(data.proposals.length)+"건 진행 예정"))
     : "     · 해당 없음";
-  reps.push([POS_W.prop_sum[0],POS_W.prop_sum[1],"<hp:t>"+ex(propSumRaw)+"</hp:t>"]);
+  reps.push([POS_W.prop_sum[0],POS_W.prop_sum[1],"<hp:t>"+propSumRaw+"</hp:t>"]);
 
-  const prop1=(data.proposals||[])[0]||{};
+  // 페이지1 제안표 - 여러 건이면 줄바꿈으로 합치기
+  const allProps=data.proposals||[];
+  const nl="\n";
+  const p1vals=[
+    allProps.map(p=>p.title||"").filter(Boolean).join(nl),
+    allProps.map(p=>p.person||"").filter(Boolean).join(nl),
+    allProps.map(p=>p.date||"").filter(Boolean).join(nl),
+  ];
   POS_W.p1_r1.forEach(([ps,pe],ci)=>{
-    reps.push([ps,pe,"<hp:t>"+ex([prop1.title||"",prop1.person||"",prop1.date||""][ci])+"</hp:t>"]);
+    reps.push([ps,pe,"<hp:t>"+ex(p1vals[ci]||"")+"</hp:t>"]);
   });
   // 제안표 아래 빈 p 제거
   reps.push([20608,20908,""]);

@@ -308,6 +308,19 @@ function buildWeeklyHWPX(data){
   const rep=data.reporter||"";
   reps.push([POS_W.reporter1[0],POS_W.reporter1[1],"<hp:t>보고자 : "+ex(rep)+"</hp:t>"]);
   reps.push([POS_W.reporter2[0],POS_W.reporter2[1],"<hp:t>보고자 : "+ex(rep)+"</hp:t>"]);
+
+  // 연간목표 (3줄)
+  const goalLines=(data.sumGoal||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  [[8588,8623],[8939,8980],[9299,9336]].forEach(([ps,pe],i)=>{
+    reps.push([ps,pe,"<hp:t>"+ex(goalLines[i]||"")+"</hp:t>"]);
+  });
+
+  // 진척사항 (2줄)
+  const progLines=(data.sumProg||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  [[10128,10154],[10470,10506]].forEach(([ps,pe],i)=>{
+    reps.push([ps,pe,"<hp:t>"+ex(progLines[i]||"")+"</hp:t>"]);
+  });
+
   // 이슈행 최대 4개 (초과분은 마지막 행에 이어붙임)
   const allIssues=data.sum_issues||[];
   const issueSlice=allIssues.slice(0,4);

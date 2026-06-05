@@ -381,19 +381,22 @@ function buildWeeklyHWPX(data){
     const vals=[prop0.title||"",prop0.person||"",prop0.date||""];
     reps.push([ps,pe,"<hp:t>"+ex(vals[ci])+"</hp:t>"]);
   });
-  // 2번째 이후 제안: 행 복사해서 삽입 (20362 위치에 추가)
+  // 2번째 이후 제안: setLastT로 각 셀 교체
   if(allProps.length>1){
     const extraRows=allProps.slice(1).map(p=>{
       let row=P1_ROW_TPL;
-      const cells=row.match(/<hp:subList[^>]*>[\s\S]*?<\/hp:subList>/g)||[];
       const vals=[p.title||"",p.person||"",p.date||""];
-      cells.slice(0,3).forEach((cell,ci)=>{
-        const tMatch=cell.match(/<hp:t>[^<]*<\/hp:t>/);
-        if(tMatch) row=row.replace(tMatch[0],"<hp:t>"+ex(vals[ci])+"</hp:t>");
+      // 각 셀(subList)별로 순서대로 교체
+      let ci=0;
+      row=row.replace(/<hp:subList[^>]*>[\s\S]*?<\/hp:subList>/g,(cell)=>{
+        if(ci>=3) return cell;
+        const replaced=cell.replace(/<hp:t>[^<]*<\/hp:t>/,"<hp:t>"+ex(vals[ci])+"</hp:t>");
+        ci++;
+        return replaced;
       });
       return row;
     }).join("");
-    reps.push([20362,20362,extraRows]); // 기존 데이터행 끝에 삽입
+    reps.push([20362,20362,extraRows]);
   }
   reps.push([POS_W.collab[0],POS_W.collab[1],"<hp:t>"+ex(data.collab||"- 특이사항 없음")+"</hp:t>"]);
   [POS_W.p2_r1,POS_W.p2_r2].forEach((rowCells,ri)=>{
@@ -437,4 +440,3 @@ exports.generateWeeklyHWPX=functions.region("asia-northeast1").runWith({memory:"
   }catch(e){console.error(e);res.status(500).json({error:e.message});}
 });
 // clean-v18
-// redeploy-row2

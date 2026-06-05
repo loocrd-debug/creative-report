@@ -346,15 +346,18 @@ function buildWeeklyHWPX(data){
   reps.push([POS_W.issue_s,POS_W.issue_e,issueXml]);
 
   // 제안요약 교체
-  const propSumText = data.proposals&&data.proposals.length>0
-    ? "     · "+ex(data.proposals.length)+"건 진행 예정"
+  // 제안요약 - Firebase proposals.summary 우선 사용
+  const propSumRaw = data.proposals&&data.proposals.length>0
+    ? (data.prop_summary||("     · "+ex(data.proposals.length)+"건 진행 예정"))
     : "     · 해당 없음";
-  reps.push([POS_W.prop_sum[0],POS_W.prop_sum[1],"<hp:t>"+propSumText+"</hp:t>"]);
+  reps.push([POS_W.prop_sum[0],POS_W.prop_sum[1],"<hp:t>"+ex(propSumRaw)+"</hp:t>"]);
 
   const prop1=(data.proposals||[])[0]||{};
   POS_W.p1_r1.forEach(([ps,pe],ci)=>{
     reps.push([ps,pe,"<hp:t>"+ex([prop1.title||"",prop1.person||"",prop1.date||""][ci])+"</hp:t>"]);
   });
+  // 제안표 아래 빈 p 제거
+  reps.push([20608,20908,""]);
   reps.push([POS_W.collab[0],POS_W.collab[1],"<hp:t>"+ex(data.collab||"- 특이사항 없음")+"</hp:t>"]);
   [POS_W.p2_r1,POS_W.p2_r2].forEach((rowCells,ri)=>{
     const p=(data.proposals2||[])[ri]||{};

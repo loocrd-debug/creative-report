@@ -497,4 +497,3 @@ exports.generateWeeklyHWPX=functions.region("asia-northeast1").runWith({memory:"
   }catch(e){console.error(e);res.status(500).json({error:e.message});}
 });
 // clean-v18
-// patchzip-v1

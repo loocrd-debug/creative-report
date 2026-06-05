@@ -90,7 +90,13 @@ function readZip(zipBuf, filename){
       const raw=zipBuf.slice(dOff,dOff+cs);
       return mt===8 ? zlib.inflateRawSync(raw) : raw;
     }
-    o=dOff+cs;
+    // flag&8: 데이터 디스크립터 건너뛰기
+    let nextO2=dOff+cs;
+    if(mt===8 && (zipBuf[o+6]&8)){
+      if(v.getUint32(nextO2,true)===0x08074b50) nextO2+=4;
+      nextO2+=12;
+    }
+    o=nextO2;
   }
   return null;
 }
@@ -122,7 +128,14 @@ function replaceZip(zipBuf, filename, newXml){
     entries.push({fn,nl,mt:curMt,crc:curCrc,cs:curCs,us:curUs,off:localOff,flags:flags&~8});
     localOff+=hdr.length+data.length;
     parts.push(hdr); parts.push(Buffer.from(data));
-    o=dOff+cs;
+    // flag&8: 데이터 디스크립터(12바이트 또는 서명포함 16바이트) 건너뛰기
+    let nextO = dOff+cs;
+    if(flags&8){
+      // 데이터 디스크립터 시그니처(0x08074b50) 확인
+      if(v.getUint32(nextO,true)===0x08074b50) nextO+=4;
+      nextO+=12; // CRC(4)+압축크기(4)+원본크기(4)
+    }
+    o=nextO;
   }
   const cdBufs=[];
   entries.forEach(e=>{

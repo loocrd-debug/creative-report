@@ -655,33 +655,33 @@ function loadWeeklySavedData(data){
   setTimeout(()=>{
     const bizBox=document.getElementById('origBizB');
     if(!bizBox) return;
-    bizBox.innerHTML=''; // 초기화 후 재로드
+    bizBox.innerHTML='';
     const bizList=data.origBiz||[];
-    bizList.forEach(b=>{
+    // 순차적으로 추가 (타이밍 이슈 방지)
+    const addBizItem=(list,i)=>{
+      if(i>=list.length) return;
+      const b=list[i];
       addBiz('origBizB');
-      // 마지막으로 추가된 item
-      const allItems=[...bizBox.querySelectorAll('.item')];
-      const item=allItems[allItems.length-1];
-      if(!item) return;
-      // 사업명
-      const nameInp=item.querySelector('.pnm');
-      if(nameInp) nameInp.value=b.name||'';
-      // 세부 항목들
-      const details=b.details||[];
-      details.forEach((det,di)=>{
-        // 현재 있는 input 목록
-        let ilDiv=item.querySelector('[id^="il"]');
-        if(!ilDiv) return;
-        let rows=[...ilDiv.querySelectorAll('.irow')];
-        // 행이 부족하면 추가
-        while(rows.length<=di){
-          addItemRow(ilDiv.id, true);
-          rows=[...ilDiv.querySelectorAll('.irow')];
+      setTimeout(()=>{
+        const allItems=[...bizBox.querySelectorAll('.item')];
+        const item=allItems[allItems.length-1];
+        if(!item){ addBizItem(list,i+1); return; }
+        const nameInp=item.querySelector('.pnm');
+        if(nameInp) nameInp.value=b.name||'';
+        const details=b.details||[];
+        const ilDiv=item.querySelector('[id^="il"]');
+        if(ilDiv){
+          details.forEach((det,di)=>{
+            let rows=[...ilDiv.querySelectorAll('.irow')];
+            while(rows.length<=di){ addItemRow(ilDiv.id,true); rows=[...ilDiv.querySelectorAll('.irow')]; }
+            const iitem=rows[di]?.querySelector('.iitem');
+            if(iitem) iitem.value=det;
+          });
         }
-        const iitem=rows[di]?.querySelector('.iitem');
-        if(iitem) iitem.value=det;
-      });
-    });
+        addBizItem(list,i+1);
+      },50);
+    };
+    addBizItem(bizList,0);
   }, 150);
 
   setTimeout(updateWeeklyPreview, 200);

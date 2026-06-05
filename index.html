@@ -657,7 +657,6 @@ function loadWeeklySavedData(data){
     if(!bizBox) return;
     bizBox.innerHTML='';
     const bizList=data.origBiz||[];
-    // 순차적으로 추가 (타이밍 이슈 방지)
     const addBizItem=(list,i)=>{
       if(i>=list.length) return;
       const b=list[i];
@@ -666,20 +665,27 @@ function loadWeeklySavedData(data){
         const allItems=[...bizBox.querySelectorAll('.item')];
         const item=allItems[allItems.length-1];
         if(!item){ addBizItem(list,i+1); return; }
-        const nameInp=item.querySelector('.pnm');
+        // 사업명: item 안 첫 번째 input
+        const nameInp=item.querySelector('input[type=text]');
         if(nameInp) nameInp.value=b.name||'';
+        // 세부내용: .brow .binp input들
         const details=b.details||[];
-        const ilDiv=item.querySelector('[id^="il"]');
-        if(ilDiv){
+        const bdDiv=item.querySelector('[id^="bd"]');
+        if(bdDiv && details.length>0){
           details.forEach((det,di)=>{
-            let rows=[...ilDiv.querySelectorAll('.irow')];
-            while(rows.length<=di){ addItemRow(ilDiv.id,true); rows=[...ilDiv.querySelectorAll('.irow')]; }
-            const iitem=rows[di]?.querySelector('.iitem');
-            if(iitem) iitem.value=det;
+            let rows=[...bdDiv.querySelectorAll('.brow')];
+            // 행이 부족하면 추가
+            if(di>=rows.length){
+              const addBtn=item.querySelector('button[onclick^="addBR"]');
+              if(addBtn) addBtn.click();
+              rows=[...bdDiv.querySelectorAll('.brow')];
+            }
+            const inp=rows[di]?.querySelector('.binp input');
+            if(inp) inp.value=det;
           });
         }
         addBizItem(list,i+1);
-      },50);
+      },80);
     };
     addBizItem(bizList,0);
   }, 150);

@@ -367,7 +367,7 @@ function buildWeeklyHWPX(data){
     const nameRow=ts.length>=2
       ?TPL_W.bizName.slice(0,ts[1].index)+"<hp:t>"+ex(b.name||"")+" </hp:t>"+TPL_W.bizName.slice(ts[1].index+ts[1][0].length)
       :setLastT(TPL_W.bizName,b.name||"");
-    return nameRow+(b.details||[]).map(d=>setLastT(TPL_W.bizDetail,d)).join("");
+    return nameRow+(b.details||[]).map(d=>setLastT(TPL_W.bizDetail,"     · "+d)).join("");
   }).join("");
   reps.push([POS_W.biz_s,POS_W.biz_e,bizXml]);
   // 별첨 섹션: 없으면 제거, 있으면 유지

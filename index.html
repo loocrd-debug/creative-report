@@ -651,6 +651,32 @@ function loadWeeklySavedData(data){
     });
   }, 50);
 
+  // 분야별 진척 (origBizB)
+  setTimeout(()=>{
+    const bizBox=document.getElementById('origBizB');
+    if(!bizBox) return;
+    bizBox.innerHTML='';
+    const bizList=data.origBiz||[];
+    bizList.forEach(b=>{
+      addBiz('origBizB');
+      const items=[...bizBox.querySelectorAll('.item')];
+      const item=items[items.length-1];
+      if(!item) return;
+      const inputs=[...item.querySelectorAll('input')];
+      if(inputs[0]) inputs[0].value=b.name||'';
+      (b.details||[]).forEach((det,di)=>{
+        if(di===0 && inputs[1]) inputs[1].value=det;
+        else{
+          // 상세 추가
+          const addBtn=item.querySelector('[onclick*="addDetail"]');
+          if(addBtn) addBtn.click();
+          const newInputs=[...item.querySelectorAll('input')];
+          if(newInputs[di+1]) newInputs[di+1].value=det;
+        }
+      });
+    });
+  }, 150);
+
   setTimeout(updateWeeklyPreview, 200);
 }
 
@@ -1697,6 +1723,10 @@ function getWeeklyData(){
       }).filter(r=>r.title)
     },
     origManpower: [...document.querySelectorAll('#origManR input')].map(i=>i.value).filter(Boolean),
+    origBiz: [...document.querySelectorAll('#origBizB .item')].map(item=>{
+      const inputs=[...item.querySelectorAll('input')];
+      return {name:inputs[0]?.value||'',details:inputs.slice(1).map(i=>i.value).filter(Boolean)};
+    }).filter(b=>b.name),
     appendix: [...document.querySelectorAll('#appendixB .appendix-row')].map(row=>({
       title: row.querySelector('.appendix-title')?.value||'26년도 크리에이티브그룹 인력 운영 현황',
       content: row.querySelector('.appendix-content')?.value||''
@@ -1722,11 +1752,15 @@ async function dlWeeklyHWP(){
     };
     const serverData = {
       reporter: d.reporter||'',
+      weekRange: d.weekRange||'',
+      sumGoal: d.sumGoal||'',
+      sumProg: d.sumProg||'',
       sum_issues: (d.issues||[]).map(parseIssue),
       proposals: (d.proposals?.list||[]),
-      proposals2: (d.proposals?.list||[]),
+      proposals2: (d.origProposals?.list||d.proposals?.list||[]),
       collab: d.collab||'- 특이사항 없음',
-      biz_details: (d.biz_details||[]),
+      biz_details: (d.origBiz||d.biz_details||[]),
+      appendix: (d.appendix||[]),
     };
 
     const res = await fetch(CLOUD_FN_URL.replace('generateHWPX','generateWeeklyHWPX'),{

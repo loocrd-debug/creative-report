@@ -106,7 +106,7 @@ function readZip(zipBuf, filename){
 // ZIP 파일에서 특정 파일 교체 (Node.js zlib 직접 방식)
 function patchZip(zipBuf, filename, newXmlStr) {
   const newData = Buffer.from(newXmlStr, "utf-8");
-  const compressed = zlib.deflateSync(newData);
+  const compressed = zlib.deflateRawSync(newData);
   const newCrc = crc32(newData);
   
   const parts = [];
@@ -497,4 +497,3 @@ exports.generateWeeklyHWPX=functions.region("asia-northeast1").runWith({memory:"
   }catch(e){console.error(e);res.status(500).json({error:e.message});}
 });
 // clean-v18
-// force-patchzip

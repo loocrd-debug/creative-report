@@ -247,7 +247,9 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
       <div class="card-hl"><span class="tag tao">참고</span><span class="card-title">이번 주 일일보고 현황</span></div>
       <div style="display:flex;gap:8px;align-items:center;">
         <div style="font-size:11px;color:var(--t2);" id="wkRangeLabel"></div>
-        <button class="btn bg" onclick="loadLastWeekly()" style="font-size:11px;">📋 지난주 불러오기</button>
+        <select id="weekSel" onchange="loadWeeklyByKey(this.value)" style="font-size:11px;background:var(--s2);border:1px solid var(--bd);color:var(--t1);border-radius:4px;padding:2px 6px;">
+          <option value="">📋 이전 주차 불러오기</option>
+        </select>
       </div>
     </div>
     <div class="card-body">
@@ -445,7 +447,7 @@ function goTab(t){
     document.getElementById('tb-'+id).classList.toggle('on',id===t);
   });
   if(t==='daily')loadLive();
-  if(t==='weekly'){ renderWeekDays(); loadWeeklySaved(); }
+  if(t==='weekly'){ renderWeekDays(); setTimeout(()=>{ loadWeeklySaved(); loadWeeklyList(); }, 100); }
 }
 
 // ── 팀원 ──
@@ -652,19 +654,43 @@ async function loadWeeklySaved(){
   if(saved) loadWeeklySavedData(saved);
 }
 
-async function loadLastWeekly(){
-  if(!window.fbGet) return;
-  const lastMon=new Date(wMon);
-  lastMon.setDate(wMon.getDate()-7);
-  const lastKey=lastMon.toISOString().split('T')[0];
-  const saved=await window.fbGet(`reports/weekly/${lastKey}`);
-  if(!saved){ alert('지난주 주간보고 저장 데이터가 없습니다.'); return; }
+async function loadWeeklyList(){
+  // 최근 8주치 주차 목록을 드롭다운에 채우기
+  const sel=document.getElementById('weekSel');
+  if(!sel||!window.fbGet) return;
+  sel.innerHTML='<option value="">📋 이전 주차 불러오기</option>';
+  const all=await window.fbGet('reports/weekly');
+  if(!all) return;
+  // 날짜 기준 내림차순 정렬
+  const keys=Object.keys(all).sort().reverse();
+  const fmt=k=>{
+    const d=new Date(k);
+    const fri=new Date(d); fri.setDate(d.getDate()+4);
+    const m1=d.getMonth()+1, d1=d.getDate();
+    const m2=fri.getMonth()+1, d2=fri.getDate();
+    return `${m1}.${String(d1).padStart(2,'0')} ~ ${m2}.${String(d2).padStart(2,'0')}`;
+  };
+  keys.forEach(k=>{
+    if(k===WEEK_KEYS[0]) return; // 이번주는 제외
+    const opt=document.createElement('option');
+    opt.value=k;
+    opt.textContent=fmt(k)+' 주간보고';
+    sel.appendChild(opt);
+  });
+}
+
+async function loadWeeklyByKey(key){
+  if(!key||!window.fbGet) return;
+  const saved=await window.fbGet(`reports/weekly/${key}`);
+  if(!saved){ alert('해당 주차 주간보고 데이터가 없습니다.'); return; }
   loadWeeklySavedData(saved);
   const banner=document.createElement('div');
-  banner.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--ac);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;';
-  banner.textContent='✅ 지난주 주간보고 불러왔습니다. 수정 후 저장하세요.';
+  banner.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--ac);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+  banner.textContent=`✅ ${key} 주간보고 불러왔습니다.`;
   document.body.appendChild(banner);
   setTimeout(()=>banner.remove(), 3000);
+  // 선택 초기화
+  document.getElementById('weekSel').value='';
 }
 
 async function loadMerged(){

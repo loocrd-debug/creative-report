@@ -621,8 +621,6 @@ function loadWeeklySavedData(data){
   setTimeout(()=>{
     const propBox=document.getElementById('sPropB');
     if(!propBox) return;
-    const existingProp=[...propBox.querySelectorAll('tr')].some(r=>[...r.querySelectorAll('input')].some(i=>i.value));
-    if(existingProp) return; // 이미 내용 있으면 스킵
     const props=(data.proposals?.list||[]).filter(p=>p.title);
     [...propBox.querySelectorAll('tr')].forEach(r=>r.querySelectorAll('input').forEach(inp=>inp.value=''));
     props.forEach((p,i)=>{
@@ -657,7 +655,7 @@ function loadWeeklySavedData(data){
   setTimeout(()=>{
     const bizBox=document.getElementById('origBizB');
     if(!bizBox) return;
-    if(bizBox.querySelectorAll('.item').length>0) return; // 이미 내용 있으면 스킵
+    bizBox.innerHTML=''; // 초기화 후 재로드
     const bizList=data.origBiz||[];
     bizList.forEach(b=>{
       addBiz('origBizB');
@@ -684,10 +682,9 @@ function loadWeeklySavedData(data){
 
 async function loadWeeklySaved(){
   if(!window.fbGet) return;
-  // 이미 화면에 작성 중인 내용이 있으면 로드하지 않음
+  // reporter 값이 이미 있으면 로드하지 않음 (작성 중인 내용 보호)
   const reporterVal = document.getElementById('reporter')?.value;
-  const sumGoalVal = document.getElementById('sumGoal')?.value;
-  if(reporterVal && sumGoalVal) return; // 이미 데이터 있음
+  if(reporterVal) return;
   const wKey=WEEK_KEYS[0];
   let saved=await window.fbGet(`reports/weekly/${wKey}`);
   if(!saved) saved=await window.fbGet(`reports/weekly/${TKEY}`);
@@ -1762,6 +1759,7 @@ async function dlWeeklyHWP(){
       sumProg: d.sumProg||'',
       sum_issues: (d.issues||[]).map(parseIssue),
       proposals: (d.proposals?.list||[]),
+      prop_summary: d.proposals?.summary||'',
       proposals2: (d.origProposals?.list||d.proposals?.list||[]),
       collab: d.collab||'- 특이사항 없음',
       biz_details: (d.origBiz||d.biz_details||[]),

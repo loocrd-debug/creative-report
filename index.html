@@ -806,17 +806,22 @@ async function mergeDataByKey(dateKey){
   const merged = {
     date: TSTR, // 오늘 날짜로
     writer: '',
-    main_events: entries.flatMap(e=>e.main_events||[]).filter(e=>e.content),
-    orig_issues: entries.flatMap(e=>e.orig_issues||[]).filter(i=>i.project),
-    sum_issues: entries.flatMap(e=>e.sum_issues||[]).filter(i=>i.project),
+    main_events: Object.values(entries.flatMap(e=>e.main_events||[]).filter(e=>e.content)
+        .reduce((m,e)=>{const k=(e.category||'')+'|'+(e.content||'');if(!m[k])m[k]=e;return m;},{})),
+    orig_issues: Object.values(entries.flatMap(e=>e.orig_issues||[]).filter(i=>i.project)
+        .reduce((m,i)=>{const k=(i.project||'')+'|'+(i.items||[]).join('|');if(!m[k])m[k]=i;return m;},{})),
+    sum_issues: Object.values(entries.flatMap(e=>e.sum_issues||[]).filter(i=>i.project)
+        .reduce((m,i)=>{const k=(i.project||'');if(!m[k])m[k]=i;return m;},{})),
     manpower: [...new Set(entries.flatMap(e=>e.manpower||[]).filter(m=>m&&m!=='특이사항 없음'))],
     schedule: Object.values(
         entries.flatMap(e=>e.schedule||[])
           .filter(s=>s.date||s.detail)
           .reduce((map,s)=>{ const k=(s.date||'')+'|'+(s.detail||''); if(!map[k])map[k]=s; return map; },{})
       ).sort((a,b)=>(a.date||'').localeCompare(b.date||'')),
-    biz_details: entries.flatMap(e=>e.biz_details||[]).filter(b=>b.name),
-    proposals: entries.flatMap(e=>e.proposals||[]).filter(p=>p.title),
+    biz_details: Object.values(entries.flatMap(e=>e.biz_details||[]).filter(b=>b.name)
+        .reduce((m,b)=>{const k=b.name||'';if(!m[k]){m[k]=b;}else{m[k].items=[...new Set([...(m[k].items||[]),...(b.items||[])])];} return m;},{})),
+    proposals: Object.values(entries.flatMap(e=>e.proposals||[]).filter(p=>p.title)
+        .reduce((m,p)=>{const k=p.title||'';if(!m[k])m[k]=p;return m;},{})),
     proposal_summary: entries.find(e=>e.proposal_summary)?.proposal_summary||'',
   };
   if(merged.manpower.length===0) merged.manpower=['특이사항 없음'];

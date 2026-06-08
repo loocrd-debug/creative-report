@@ -177,14 +177,7 @@ function makeLineSeg(text){
   return `<hp:linesegarray>${segs}</hp:linesegarray>`;
 }
 // schedule detail linesegarray 위치 (원본 XML 기준)
-const SCHED_LSA=[
-  [[23179,23358]],   // 행1: linesegarray 1개
-  [[25953,26132]],   // 행2
-  [[28401,28580]],   // 행3
-  [[30826,31005]],   // 행4
-  [],                // 행5
-  [],                // 행6
-];
+const SCHED_LSA=[[], [[23179, 23652]], [[25427, 25605]], [[28159, 28337]], [[30895, 31073]], []];
 
 function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");

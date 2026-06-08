@@ -166,6 +166,18 @@ function crc32(buf){
 }
 
 
+
+// 텍스트 길이에 맞는 linesegarray 생성
+function makeLineSeg(text){
+  let len=0;
+  for(const c of (text||'')) len+=(c.charCodeAt(0)>127)?2:1;
+  const CHARS=50, VERT=1100, SPACING=332, STRIDE=VERT+SPACING;
+  const lines=Math.max(1,Math.ceil(len/CHARS));
+  let segs='';
+  for(let i=0;i<lines;i++) segs+=`<hp:lineseg textpos="0" vertpos="${i*STRIDE}" vertsize="${VERT}" textheight="${VERT}" baseline="935" spacing="${SPACING}" horzpos="0" horzsize="31492" flags="393216"/>`;
+  return `<hp:linesegarray>${segs}</hp:linesegarray>`;
+}
+
 function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
@@ -183,6 +195,18 @@ function buildHWPX(data){
   for(let i=0;i<6;i++){
     const s = sc[i]||{date:"",detail:"",note:""};
     const vals = [s.date||"", s.detail||"", s.note||""];
+    // detail lineseg 동적 교체
+    if(vals[1] && (CELL_INFO[i]||[])[1]){
+      const cell1=(CELL_INFO[i]||[])[1];
+      const anchor=cell1.type==="t"?cell1.pos[0][0]:(cell1.s||0);
+      const pStart=xml.lastIndexOf('<hp:p ',anchor);
+      const pEnd=xml.indexOf('</hp:p>',anchor)+7;
+      const lsaS=xml.indexOf('<hp:linesegarray>',pStart);
+      if(lsaS>=0&&lsaS<pEnd){
+        const lsaE=xml.indexOf('</hp:linesegarray>',lsaS)+18;
+        reps.push([lsaS,lsaE,makeLineSeg(vals[1])]);
+      }
+    }
     (CELL_INFO[i]||[]).forEach((cell, ci)=>{
       const val = ci<vals.length ? vals[ci] : "";
       if(cell.type==="t"){

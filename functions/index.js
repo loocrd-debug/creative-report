@@ -195,16 +195,29 @@ function buildHWPX(data){
   for(let i=0;i<6;i++){
     const s = sc[i]||{date:"",detail:"",note:""};
     const vals = [s.date||"", s.detail||"", s.note||""];
-    // detail lineseg 동적 교체
+    // detail lineseg + cellSz 동적 교체
     if(vals[1] && (CELL_INFO[i]||[])[1]){
       const cell1=(CELL_INFO[i]||[])[1];
       const anchor=cell1.type==="t"?cell1.pos[0][0]:(cell1.s||0);
       const pStart=xml.lastIndexOf('<hp:p ',anchor);
       const pEnd=xml.indexOf('</hp:p>',anchor)+7;
+      // lineseg 교체
       const lsaS=xml.indexOf('<hp:linesegarray>',pStart);
       if(lsaS>=0&&lsaS<pEnd){
         const lsaE=xml.indexOf('</hp:linesegarray>',lsaS)+18;
-        reps.push([lsaS,lsaE,makeLineSeg(vals[1])]);
+        const newLsa=makeLineSeg(vals[1]);
+        reps.push([lsaS,lsaE,newLsa]);
+        // cellSz height도 함께 교체 (lineseg 줄 수에 맞게)
+        const lineCount=newLsa.split('<hp:lineseg ').length-1;
+        const cellH=lineCount*1100+(lineCount-1)*332+500;
+        const tcS=xml.lastIndexOf('<hp:tc ',anchor);
+        const szM=xml.indexOf('<hp:cellSz ',tcS);
+        if(szM>=0&&szM<lsaS){
+          const szE=xml.indexOf('/>',szM)+2;
+          const oldSz=xml.slice(szM,szE);
+          const newSz=oldSz.replace(/height="\d+"/,`height="${cellH}"`);
+          if(oldSz!==newSz) reps.push([szM,szE,newSz]);
+        }
       }
     }
     (CELL_INFO[i]||[]).forEach((cell, ci)=>{

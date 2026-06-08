@@ -1496,6 +1496,7 @@ async function doSave(){
     const b=document.getElementById(bid); b.classList.add('show');
     setTimeout(()=>b.classList.remove('show'),3500);
     loadLive();
+    loadDailyShared(); // 저장 후 화면 즉시 갱신
   }else if(activeTab==='tb-weekly'){
     const rep=document.getElementById('reporter').value;
     if(!rep){alert('보고자를 입력해주세요.');return;}

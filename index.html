@@ -1337,15 +1337,18 @@ function loadSaved(saved){
   setTimeout(()=>{
     const schedBox = document.getElementById('schedB');
     if(!schedBox) return;
-    [...schedBox.querySelectorAll('tr')].forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
-    (saved.schedule||[]).forEach((s,i)=>{
-      let row = schedBox.querySelectorAll('tr')[i];
-      if(!row){ addTR('schedB'); row = schedBox.querySelectorAll('tr')[i]; }
-      if(!row) return;
-      const c = row.querySelectorAll('input');
-      if(c[0]) c[0].value = s.date||'';
-      if(c[1]) c[1].value = s.detail||'';
-      if(c[2]) c[2].value = s.note||'';
+    // 기존 행 완전 삭제 후 재생성
+    schedBox.innerHTML = '';
+    const scheds=(saved.schedule||[]).filter(s=>s.date||s.detail);
+    if(scheds.length===0){addTR('schedB');return;}
+    scheds.forEach((s,i)=>{
+      addTR('schedB');
+      const row=schedBox.querySelectorAll('tr')[i];
+      if(!row)return;
+      const c=row.querySelectorAll('input');
+      if(c[0])c[0].value=s.date||'';
+      if(c[1])c[1].value=s.detail||'';
+      if(c[2])c[2].value=s.note||'';
     });
   }, 100);
 

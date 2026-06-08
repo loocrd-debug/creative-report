@@ -474,3 +474,20 @@ exports.generateWeeklyHWPXv3=functions.region("asia-northeast1").runWith({memory
     res.send(buf);
   }catch(e){console.error(e);res.status(500).json({error:e.message});}
 });
+
+exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,res)=>{
+  res.set("Access-Control-Allow-Origin","*");
+  try {
+    const fs = require("fs");
+    const path = require("path");
+    const b64path = __dirname+"/weekly.b64";
+    const exists = fs.existsSync(b64path);
+    const size = exists ? fs.statSync(b64path).size : 0;
+    const WEEKLY_B64_local = exists ? fs.readFileSync(b64path,"utf-8").trim() : "";
+    const zipSize = WEEKLY_B64_local ? Buffer.from(WEEKLY_B64_local,"base64").length : 0;
+    res.json({exists, size, zipSize, __dirname, b64path});
+  } catch(e) {
+    res.status(500).json({error: e.message});
+  }
+});
+

@@ -435,8 +435,8 @@ document.addEventListener('fb-ready',()=>{
   document.getElementById('fbTxt').textContent=live?'LIVE':'DEMO';
   loadMembers();
   loadLive();
-  loadDailyShared();
   renderWeekDays();
+  setTimeout(loadDailyShared, 500); // Firebase 준비 후 로드
   if(live&&window.fbWatch){
     window.fbWatch(`reports/daily/${TKEY}`,data=>{renderLive(Object.values(data||{}));});
   }
@@ -448,7 +448,7 @@ function goTab(t){
     document.getElementById('pg-'+id).classList.toggle('hidden',id!==t);
     document.getElementById('tb-'+id).classList.toggle('on',id===t);
   });
-  if(t==='daily'){ loadLive(); loadDailyShared(); }
+  if(t==='daily'){ loadLive(); setTimeout(loadDailyShared, 300); }
   if(t==='weekly'){ renderWeekDays(); setTimeout(()=>{ loadWeeklySaved(); loadWeeklyList(); }, 100); }
 }
 

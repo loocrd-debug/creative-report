@@ -765,8 +765,10 @@ async function loadMerged(){
       orig_issues: entries.flatMap(e=>e.orig_issues||[]).filter(i=>i.project),
       sum_issues: entries.flatMap(e=>e.sum_issues||[]).filter(i=>i.project),
       manpower: [...new Set(entries.flatMap(e=>e.manpower||[]).filter(m=>m&&m!=='특이사항 없음'))],
-      schedule: entries.flatMap(e=>e.schedule||[]).filter(s=>s.date||s.detail)
-        .sort((a,b)=>(a.date||'').localeCompare(b.date||'')),
+      schedule: Object.values(
+          entries.flatMap(e=>e.schedule||[]).filter(s=>s.date||s.detail)
+            .reduce((map,s)=>{ const k=(s.date||'')+'|'+(s.detail||''); if(!map[k])map[k]=s; return map; },{})
+        ).sort((a,b)=>(a.date||'').localeCompare(b.date||'')),
       biz_details: entries.flatMap(e=>e.biz_details||[]).filter(b=>b.name),
       proposals: entries.flatMap(e=>e.proposals||[]).filter(p=>p.title),
       proposal_summary: entries.find(e=>e.proposal_summary)?.proposal_summary||'',

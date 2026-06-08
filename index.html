@@ -1472,7 +1472,7 @@ function getDailyData(){
     sum_issues:getIssues('sumI'),
     orig_issues:getIssues('origI'),
     manpower:[...document.querySelectorAll('#manB .binp input')].map(i=>i.value).filter(Boolean),
-    schedule:[...document.querySelectorAll('#schedB tr')].map(tr=>{const c=tr.querySelectorAll('input');return{date:c[0]?.value||'',detail:c[1]?.value||'',note:c[2]?.value||''};}).filter(r=>r.date||r.detail),
+    schedule:[...document.querySelectorAll('#schedB tr')].map(tr=>{const c=tr.querySelectorAll('input');return{date:c[0]?.value||'',detail:c[1]?.value||'',note:c[2]?.value||''};}).filter(r=>r.detail),
     proposal_summary:document.getElementById('propSum').value,
     proposals:[...document.querySelectorAll('#propB tr')].map(tr=>{const c=tr.querySelectorAll('input');return{title:c[0]?.value||'',person:c[1]?.value||'',date:c[2]?.value||''};}).filter(r=>r.title),
     biz_details:[...document.querySelectorAll('#bizB .item')].map(item=>{const inputs=[...item.querySelectorAll('input')];return{name:inputs[0]?.value||'',details:inputs.slice(1).map(i=>i.value).filter(Boolean)};}).filter(b=>b.name||b.details.length),

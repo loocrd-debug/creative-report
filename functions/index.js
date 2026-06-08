@@ -535,3 +535,28 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 
 
+
+exports.generateHWPX2 = functions
+  .region("asia-northeast1")
+  .runWith({memory:"512MB",timeoutSeconds:60})
+  .https.onRequest(async(req,res)=>{
+    res.set("Access-Control-Allow-Origin","*");
+    res.set("Access-Control-Allow-Methods","POST,OPTIONS");
+    res.set("Access-Control-Allow-Headers","Content-Type");
+    if(req.method==="OPTIONS"){res.status(204).send("");return;}
+    if(req.method!=="POST"){res.status(405).send("Method Not Allowed");return;}
+    try{
+      const {data}=req.body;
+      const buf=buildHWPX(data||{});
+      const fn=encodeURIComponent("일일상황보고_크리에이티브그룹.hwpx");
+      res.set("Content-Type","application/octet-stream");
+      res.set("Content-Disposition",`attachment; filename*=UTF-8''${fn}`);
+      res.send(buf);
+    }catch(e){
+      console.error(e);
+      res.status(500).json({error:e.message});
+    }
+  });
+// clean-v7
+// clean-v14
+

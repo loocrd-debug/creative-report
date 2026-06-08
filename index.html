@@ -891,7 +891,7 @@ async function loadByDate(){
   setTimeout(()=>banner.remove(), 4000);
 }
 async function onUserSelChange(){
-  // 작성자 선택 = editing 상태 표시만 (화면 데이터는 shared 그대로)
+  // 작성자 선택 = editing 상태 표시만 v2
   const user=document.getElementById('userSel').value;
   if(!user||window.IS_DEMO) return;
   const key=user.replace(/[\s.()]/g,'_');

@@ -165,6 +165,27 @@ function crc32(buf){
   return (c^0xFFFFFFFF)>>>0;
 }
 
+
+// schedule detail 셀 lineseg 동적 생성
+function makeLineSeg(text){
+  let len=0;
+  for(const c of (text||'')) len+=(c.charCodeAt(0)>127)?2:1;
+  const CHARS=52, VERT=1100, SPACING=332, STRIDE=VERT+SPACING;
+  const lines=Math.max(1,Math.ceil(len/CHARS));
+  let segs='';
+  for(let i=0;i<lines;i++) segs+=`<hp:lineseg textpos="0" vertpos="${i*STRIDE}" vertsize="${VERT}" textheight="${VERT}" baseline="935" spacing="${SPACING}" horzpos="0" horzsize="31492" flags="393216"/>`;
+  return `<hp:linesegarray>${segs}</hp:linesegarray>`;
+}
+// schedule detail linesegarray 위치 (원본 XML 기준)
+const SCHED_LSA=[
+  [[23179,23358],[23517,23699]],
+  [[25953,26132]],
+  [[28401,28580]],
+  [[30826,31005]],
+  [],
+  [],
+];
+
 function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
@@ -182,6 +203,10 @@ function buildHWPX(data){
   for(let i=0;i<6;i++){
     const s = sc[i]||{date:"",detail:"",note:""};
     const vals = [s.date||"", s.detail||"", s.note||""];
+    // detail 텍스트 길이에 따라 lineseg 동적 교체
+    if(SCHED_LSA[i] && vals[1]){
+      SCHED_LSA[i].forEach(([ls,le])=>{ reps.push([ls,le,makeLineSeg(vals[1])]); });
+    }
     (CELL_INFO[i]||[]).forEach((cell, ci)=>{
       const val = ci<vals.length ? vals[ci] : "";
       if(cell.type==="t"){

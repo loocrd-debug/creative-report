@@ -165,6 +165,34 @@ function crc32(buf){
   return (c^0xFFFFFFFF)>>>0;
 }
 
+
+// schedule detail 셀 linesegarray 동적 생성
+// text 길이에 따라 필요한 줄 수 계산
+function makeLineSeg(text) {
+  // 한글 2바이트 계산: 한글은 2, 나머지 1
+  let len = 0;
+  for(const c of text) len += (c.charCodeAt(0) > 127) ? 2 : 1;
+  // 한 줄 약 52글자(바이트 기준), horzsize=31492
+  const CHARS_PER_LINE = 52;
+  const lines = Math.max(1, Math.ceil(len / CHARS_PER_LINE));
+  const VERT = 1100, SPACING = 332, STRIDE = VERT + SPACING;
+  let segs = '';
+  for(let i = 0; i < lines; i++) {
+    segs += `<hp:lineseg textpos="0" vertpos="${i * STRIDE}" vertsize="${VERT}" textheight="${VERT}" baseline="935" spacing="${SPACING}" horzpos="0" horzsize="31492" flags="393216"/>`;
+  }
+  return `<hp:linesegarray>${segs}</hp:linesegarray>`;
+}
+
+// schedule detail linesegarray 위치 (원본 XML 기준)
+const SCHED_LSA = [
+  [[23179,23358],[23517,23699]],  // 행1 (2개)
+  [[25953,26132]],                 // 행2
+  [[28401,28580]],                 // 행3
+  [[30826,31005]],                 // 행4
+  [],                              // 행5 (원본 없음)
+  [],                              // 행6 (원본 없음)
+];
+
 function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
@@ -182,6 +210,12 @@ function buildHWPX(data){
   for(let i=0;i<6;i++){
     const s = sc[i]||{date:"",detail:"",note:""};
     const vals = [s.date||"", s.detail||"", s.note||""];
+    // detail 텍스트 lineseg 동적 교체
+    if(SCHED_LSA[i] && vals[1]) {
+      SCHED_LSA[i].forEach(([ls,le]) => {
+        reps.push([ls, le, makeLineSeg(vals[1])]);
+      });
+    }
     (CELL_INFO[i]||[]).forEach((cell, ci)=>{
       const val = ci<vals.length ? vals[ci] : "";
       if(cell.type==="t"){
@@ -474,20 +508,3 @@ exports.generateWeeklyHWPXv3=functions.region("asia-northeast1").runWith({memory
     res.send(buf);
   }catch(e){console.error(e);res.status(500).json({error:e.message});}
 });
-
-exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,res)=>{
-  res.set("Access-Control-Allow-Origin","*");
-  try {
-    const fs = require("fs");
-    const path = require("path");
-    const b64path = __dirname+"/weekly.b64";
-    const exists = fs.existsSync(b64path);
-    const size = exists ? fs.statSync(b64path).size : 0;
-    const WEEKLY_B64_local = exists ? fs.readFileSync(b64path,"utf-8").trim() : "";
-    const zipSize = WEEKLY_B64_local ? Buffer.from(WEEKLY_B64_local,"base64").length : 0;
-    res.json({exists, size, zipSize, __dirname, b64path});
-  } catch(e) {
-    res.status(500).json({error: e.message});
-  }
-});
-

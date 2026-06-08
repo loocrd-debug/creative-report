@@ -159,6 +159,24 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
 
 <!-- ════ 일일보고 ════ -->
 <div class="page" id="pg-daily">
+  <!-- 공유 일일보고 뷰 -->
+  <div class="card" style="margin-bottom:14px;" id="sharedDailyCard">
+    <div class="card-hd">
+      <div class="card-hl">
+        <span class="tag" style="background:rgba(79,124,255,.15);color:var(--ac);">취합</span>
+        <span class="card-title">오늘 일일보고 현황</span>
+        <span id="sharedDateLabel" style="font-size:11px;color:var(--t3);margin-left:8px;"></span>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn" id="prevDayBtn" onclick="loadPrevDay()" style="font-size:11px;">📅 이전 평일</button>
+        <button class="btn bp" onclick="loadDailyShared()" style="font-size:11px;">↻ 새로고침</button>
+      </div>
+    </div>
+    <div id="sharedDailyBox" style="padding:12px 16px;min-height:60px;">
+      <span style="color:var(--t3);font-size:11px;">로딩 중...</span>
+    </div>
+  </div>
+
   <div class="card" style="margin-bottom:14px;">
     <div class="card-hd">
       <div class="card-hl"><span class="tag tac">실시간</span><span class="card-title">오늘 작성 현황</span></div>
@@ -435,6 +453,7 @@ document.addEventListener('fb-ready',()=>{
   document.getElementById('fbTxt').textContent=live?'LIVE':'DEMO';
   loadMembers();
   loadLive();
+  loadDailyShared();
   renderWeekDays();
   if(live&&window.fbWatch){
     window.fbWatch(`reports/daily/${TKEY}`,data=>{renderLive(Object.values(data||{}));});
@@ -447,8 +466,135 @@ function goTab(t){
     document.getElementById('pg-'+id).classList.toggle('hidden',id!==t);
     document.getElementById('tb-'+id).classList.toggle('on',id===t);
   });
-  if(t==='daily')loadLive();
+  if(t==='daily'){ loadLive(); loadDailyShared(); }
   if(t==='weekly'){ renderWeekDays(); setTimeout(()=>{ loadWeeklySaved(); loadWeeklyList(); }, 100); }
+}
+
+// 이전 평일 로드
+async function loadPrevDay(){
+  const prevKey = getRecentWeekdayKey();
+  await loadSharedView(prevKey, true);
+}
+
+// 최근 평일 날짜 키 반환 (오늘 데이터 없으면 이전 평일)
+function getRecentWeekdayKey(fromDate) {
+  const d = fromDate ? new Date(fromDate) : new Date();
+  d.setDate(d.getDate() - 1); // 어제부터 시작
+  // 주말 건너뛰기
+  while(d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0,10);
+}
+
+// 오늘 공유 일일보고 자동 로드
+async function loadDailyShared() {
+  if(!window.fbGet) return;
+  try {
+    // 오늘 데이터 확인
+    const todayData = await window.fbGet(`reports/daily/${TKEY}`);
+    const entries = todayData ? Object.values(todayData).filter(Boolean) : [];
+    const doneEntries = entries.filter(e => e.status === 'done' || (e.writer && !e.status));
+    
+    if(doneEntries.length > 0) {
+      // 오늘 작성된 내용이 있으면 취합해서 화면에 표시
+      await loadSharedView(TKEY);
+    } else {
+      // 없으면 최근 평일 데이터 로드
+      const prevKey = getRecentWeekdayKey();
+      const prevData = await window.fbGet(`reports/daily/${prevKey}`);
+      if(prevData && Object.keys(prevData).length > 0) {
+        await loadSharedView(prevKey, true); // true = 이전날 데이터 표시
+      }
+    }
+  } catch(e) {
+    console.log('loadDailyShared 오류:', e.message);
+  }
+}
+
+// 공유 뷰 렌더링
+async function loadSharedView(dateKey, isPrev) {
+  const allData = await window.fbGet(`reports/daily/${dateKey}`);
+  if(!allData) return;
+  const entries = Object.values(allData).filter(Boolean);
+  if(entries.length === 0) return;
+  
+  // 취합 (중복 제거)
+  const merged = mergeEntries(entries, dateKey);
+  renderSharedDaily(merged, isPrev);
+}
+
+// entries 취합 함수
+function mergeEntries(entries, dateKey) {
+  return {
+    date: entries[0]?.date || dateKey,
+    writer: '',
+    main_events: Object.values(entries.flatMap(e=>e.main_events||[]).filter(e=>e.content)
+      .reduce((m,e)=>{const k=(e.category||'')+'|'+(e.content||'');if(!m[k])m[k]=e;return m;},{})),
+    orig_issues: Object.values(entries.flatMap(e=>e.orig_issues||[]).filter(i=>i.project)
+      .reduce((m,i)=>{const k=i.project||'';if(!m[k])m[k]=i;else m[k].items=[...new Set([...(m[k].items||[]),...(i.items||[])])];return m;},{})),
+    sum_issues: Object.values(entries.flatMap(e=>e.sum_issues||[]).filter(i=>i.project)
+      .reduce((m,i)=>{const k=i.project||'';if(!m[k])m[k]=i;return m;},{})),
+    manpower: [...new Set(entries.flatMap(e=>e.manpower||[]).filter(m=>m&&m!=='특이사항 없음'))],
+    schedule: Object.values(entries.flatMap(e=>e.schedule||[]).filter(s=>s.date||s.detail)
+      .reduce((m,s)=>{const k=(s.date||'')+'|'+(s.detail||'');if(!m[k])m[k]=s;return m;},{}))
+      .sort((a,b)=>(a.date||'').localeCompare(b.date||'')),
+    biz_details: Object.values(entries.flatMap(e=>e.biz_details||[]).filter(b=>b.name)
+      .reduce((m,b)=>{const k=b.name||'';if(!m[k])m[k]=b;else m[k].items=[...new Set([...(m[k].items||[]),...(b.items||[])])];return m;},{})),
+    proposals: Object.values(entries.flatMap(e=>e.proposals||[]).filter(p=>p.title)
+      .reduce((m,p)=>{const k=p.title||'';if(!m[k])m[k]=p;return m;},{})),
+    proposal_summary: entries.find(e=>e.proposal_summary)?.proposal_summary||'',
+  };
+}
+
+// 공유 일일보고 화면에 렌더링
+function renderSharedDaily(d, isPrev) {
+  const box = document.getElementById('sharedDailyBox');
+  if(!box) return;
+  
+  const dateLabel = isPrev ? `📅 ${d.date} (이전 평일)` : `📅 ${d.date}`;
+  const labelEl = document.getElementById('sharedDateLabel');
+  if(labelEl) labelEl.textContent = dateLabel;
+  let h = `<div style="color:var(--t3);font-size:11px;margin-bottom:8px;">${dateLabel}</div>`;
+  
+  // 주요일정
+  if((d.schedule||[]).length > 0) {
+    h += `<div style="font-weight:600;color:var(--ac);font-size:12px;margin:8px 0 4px;">📌 주요 일정</div>`;
+    d.schedule.forEach(s=>{
+      h += `<div style="font-size:11px;color:var(--t2);padding:3px 0 3px 8px;border-left:2px solid var(--ac);">`;
+      h += `<span style="color:var(--t1);font-weight:600;">${s.date}</span> ${s.detail}`;
+      if(s.note) h += ` <span style="color:var(--t3);">(${s.note})</span>`;
+      h += `</div>`;
+    });
+  }
+  
+  // 현안이슈
+  const issues = d.orig_issues||[];
+  if(issues.length > 0) {
+    h += `<div style="font-weight:600;color:var(--yw);font-size:12px;margin:8px 0 4px;">⚡ 현안 이슈</div>`;
+    issues.forEach(iss=>{
+      h += `<div style="font-size:11px;color:var(--t1);padding:2px 0 2px 8px;">- ${iss.project}</div>`;
+      (iss.items||[]).forEach(item=>{
+        h += `<div style="font-size:10px;color:var(--t2);padding:1px 0 1px 20px;">· ${item}</div>`;
+      });
+    });
+  }
+  
+  // 인력동향
+  const mp = d.manpower||[];
+  if(mp.length > 0 && !(mp.length===1 && mp[0]==='특이사항 없음')) {
+    h += `<div style="font-weight:600;color:var(--t2);font-size:12px;margin:8px 0 4px;">👥 인력 동향</div>`;
+    mp.forEach(m=>{ h += `<div style="font-size:11px;color:var(--t2);padding:2px 0 2px 8px;">- ${m}</div>`; });
+  }
+  
+  if(!h.includes('📌') && !h.includes('⚡') && !h.includes('👥')) {
+    h += `<div style="color:var(--t3);font-size:11px;">작성된 내용이 없습니다.</div>`;
+  }
+  
+  box.innerHTML = h;
+  box.style.display = 'block';
+  
+  // 어제 불러오기 버튼 상태
+  const prevBtn = document.getElementById('prevDayBtn');
+  if(prevBtn) prevBtn.style.display = isPrev ? 'none' : '';
 }
 
 // ── 팀원 ──

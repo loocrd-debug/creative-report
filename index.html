@@ -465,22 +465,25 @@ function getRecentWeekdayKey(fromDate) {
 async function loadDailyShared() {
   if(!window.fbGet) return;
   try {
-    // 오늘 데이터 확인
+    // shared 키에서 공유 문서 로드
+    let data = await window.fbGet(`reports/daily/${TKEY}/shared`);
+    if(data) {
+      loadSaved(data);
+      return;
+    }
+    // shared 없으면 취합해서 로드 (기존 방식 fallback)
     const todayData = await window.fbGet(`reports/daily/${TKEY}`);
     const entries = todayData ? Object.values(todayData).filter(e=>e&&e.writer) : [];
-    
     if(entries.length > 0) {
-      // 오늘 작성된 내용이 있으면 취합해서 화면에 로드
       const merged = await mergeDataByKey(TKEY);
       if(merged) loadSaved(merged);
     } else {
       // 아무도 안 썼으면 최근 평일 데이터 로드
       const prevKey = getRecentWeekdayKey();
-      const prevData = await window.fbGet(`reports/daily/${prevKey}`);
-      if(prevData && Object.keys(prevData).length > 0) {
-        const merged = await mergeDataByKey(prevKey);
-        if(merged) loadSaved(merged);
-      }
+      const sharedPrev = await window.fbGet(`reports/daily/${prevKey}/shared`);
+      if(sharedPrev) { loadSaved(sharedPrev); return; }
+      const merged = await mergeDataByKey(prevKey);
+      if(merged) loadSaved(merged);
     }
   } catch(e) {
     console.log('loadDailyShared 오류:', e.message);
@@ -869,10 +872,10 @@ async function loadYesterday(){
   yesterday.setDate(yesterday.getDate()-1);
   const ykey=yesterday.toISOString().split('T')[0];
 
-  const merged = await mergeDataByKey(ykey);
+  // shared 키 우선, 없으면 취합
+  let merged = await window.fbGet(`reports/daily/${ykey}/shared`);
+  if(!merged) merged = await mergeDataByKey(ykey);
   if(!merged){ alert(`${ykey} 작성 데이터가 없습니다.`); return; }
-
-  const writers = Object.keys((await window.fbGet(`reports/daily/${ykey}`))||{});
   window._mergedData = merged;
   loadSaved(merged);
 
@@ -910,11 +913,9 @@ async function onUserSelChange(){
   const existing=await window.fbGet(`reports/daily/${TKEY}/${key}`);
   if(!existing||existing.status!=='done'){
     const writerObj=members.find(m=>m.n+' '+m.r===user)||{};
-    await window.fbSet(`reports/daily/${TKEY}/${key}`,{
-      ...(existing||{}),
-      writer:user,
-      status:'editing'
-    });
+    // editing 상태만 개인 키에 저장
+    await window.fbSet(`reports/daily/${TKEY}/${key}/status`,'editing');
+    await window.fbSet(`reports/daily/${TKEY}/${key}/writer`,user);
     loadLive();
   }
   // onDisconnect 등록
@@ -959,6 +960,8 @@ function renderLive(entries){
   // status별 분류
   const statusMap={};
   entries.filter(Boolean).forEach(e=>{
+    // writer와 status가 직접 있거나 문자열인 경우 처리
+    if(typeof e === 'string') return;  // status:'done' 같은 값 무시
     if(e.writer) statusMap[e.writer]=e.status||'done';
   });
   const doneCount=Object.values(statusMap).filter(s=>s==='done').length;
@@ -1488,9 +1491,16 @@ async function doSave(){
     const btn=document.getElementById('saveBtn');
     btn.textContent='저장 중...'; btn.disabled=true;
     const data=getDailyData();
-    data.status='done';  // 저장 완료 상태
+    data.writer=user;
+    data.status='done';
     let ok=false;
-    if(window.fbSet)ok=await window.fbSet(`reports/daily/${TKEY}/${user.replace(/[\s.()]/g,'_')}`,data);
+    // 공유 문서로 저장 (shared 키에 하나만)
+    if(window.fbSet){
+      ok=await window.fbSet(`reports/daily/${TKEY}/shared`, data);
+      // 개인 저장도 유지 (작성자 현황 추적용)
+      await window.fbSet(`reports/daily/${TKEY}/${user.replace(/[\s.()]/g,'_')}/status`,'done');
+      await window.fbSet(`reports/daily/${TKEY}/${user.replace(/[\s.()]/g,'_')}/writer`,user);
+    }
     btn.textContent='💾 저장'; btn.disabled=false;
     const bid=window.IS_DEMO?'bWn':'bOk';
     const b=document.getElementById(bid); b.classList.add('show');

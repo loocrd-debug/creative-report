@@ -178,12 +178,12 @@ function makeLineSeg(text){
 }
 // schedule detail linesegarray 위치 (원본 XML 기준)
 const SCHED_LSA=[
-  [[23179,23358],[23517,23699]],
-  [[25953,26132]],
-  [[28401,28580]],
-  [[30826,31005]],
-  [],
-  [],
+  [[23179,23358]],   // 행1: linesegarray 1개
+  [[25953,26132]],   // 행2
+  [[28401,28580]],   // 행3
+  [[30826,31005]],   // 행4
+  [],                // 행5
+  [],                // 행6
 ];
 
 function buildHWPX(data){
@@ -515,4 +515,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
     res.status(500).json({error: e.message});
   }
 });
-// lineseg-deploy
+

@@ -33,7 +33,6 @@ window.fbWatch=(path,cb)=>{
 window.IS_DEMO=!db;
 window.FB_READY=true;
 document.dispatchEvent(new Event('fb-ready'));
-
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
@@ -1742,36 +1741,51 @@ function getWeeklyData(){
 }
 
 async function dlWeeklyHWP(){
-  const btn=document.querySelector('.bhwp');
-  if(btn){btn.textContent='⏳ 생성 중...';btn.disabled=true;}
+  const btn = document.querySelector('.bhwp');
+  if(btn){ btn.textContent='⏳ 생성 중...'; btn.disabled=true; }
   try{
-    const wKey=WEEK_KEYS[0];
-    let d=await window.fbGet(`reports/weekly/${wKey}`);
-    if(!d) d=await window.fbGet(`reports/weekly/${TKEY}`);
-    if(!d){alert('저장된 주간보고 데이터가 없습니다. 먼저 저장해주세요.');return;}
-    const parseIssue=text=>{const m=text.match(/^(\[.+?\])\s*(.*)/s);return m?{label:m[1],content:m[2]}:{label:'',content:text};};
-    const serverData={
-      reporter:d.reporter||'',weekRange:d.weekRange||'',
-      sumGoal:d.sumGoal||'',sumProg:d.sumProg||'',
-      origGoal:d.origGoal||d.sumGoal||'',origProg:d.origProg||d.sumProg||'',
-      sum_issues:(d.issues||[]).map(parseIssue),
-      proposals:d.proposals?.list||[],prop_summary:d.proposals?.summary||'',
-      proposals2:d.origProposals?.list||d.proposals?.list||[],
-      prop2_summary:d.origProposals?.summary||d.proposals?.summary||'',
-      collab:d.collab||'',biz_details:d.origBiz||[],appendix:d.appendix||[],
-    };
-    const url=CLOUD_FN_URL.replace('generateHWPX','generateWeeklyHWPX');
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:serverData})});
-    if(!res.ok){const t=await res.text();throw new Error(t);}
-    const blob=await res.blob();
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    a.download=`주간상황보고_크리에이티브그룹.hwpx`;
-    document.body.appendChild(a);a.click();document.body.removeChild(a);
-  }catch(e){
-    console.error('dlWeeklyHWP 오류:',e);
-    alert('파일 생성 오류: '+e.message);
-  }finally{
-    if(btn){btn.textContent='📄 HWP 저장';btn.disabled=false;}
-  }
-}
+    // Firebase에서 직접 최신 데이터 읽기
+    const wKey = WEEK_KEYS[0];
+    let d = await window.fbGet(`reports/weekly/${wKey}`);
+    if(!d) d = await window.fbGet(`reports/weekly/${TKEY}`);
+    if(!d){ alert('저장된 주간보고 데이터가 없습니다. 먼저 저장해주세요.'); return; }
 
+    // issues 파싱: "[라벨] 내용" 형태 분리
+    const parseIssue = text => {
+      const m = text.match(/^(\[.+?\])\s*(.*)/s);
+      return m ? {label: m[1], content: m[2]} : {label: '', content: text};
+    };
+    const serverData = {
+      reporter: d.reporter||'',
+      weekRange: d.weekRange||'',
+      sumGoal: d.sumGoal||'',
+      sumProg: d.sumProg||'',
+      origGoal: d.origGoal||d.sumGoal||'',
+      origProg: d.origProg||d.sumProg||'',
+      sum_issues: (d.issues||[]).map(parseIssue),
+      proposals: (d.proposals?.list||[]),
+      prop_summary: d.proposals?.summary||'',
+      proposals2: (d.origProposals?.list||d.proposals?.list||[]),
+      prop2_summary: d.origProposals?.summary||d.proposals?.summary||'',
+      collab: d.collab||'- 특이사항 없음',
+      biz_details: (d.origBiz||d.biz_details||[]),
+      appendix: (d.appendix||[]),
+    };
+
+    const res = await fetch(CLOUD_FN_URL.replace('generateHWPX','generateWeeklyHWPX'),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({data: serverData})
+    });
+    if(!res.ok) throw new Error('서버 오류: '+res.status);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '주간상황보고_크리에이티브그룹.hwpx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }catch(e){ alert('오류: '+e.message); console.error(e); }
+  finally{ if(btn){ btn.textContent='📄 HWP 저장'; btn.disabled=false; } }
+}
+</script>
+</body>
+</html>

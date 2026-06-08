@@ -1494,19 +1494,24 @@ async function doSave(){
     data.writer=user;
     data.status='done';
     let ok=false;
-    // 공유 문서로 저장 (shared 키에 하나만)
     if(window.fbSet){
+      // 1. shared 키에 공유 문서 저장
       ok=await window.fbSet(`reports/daily/${TKEY}/shared`, data);
-      // 개인 저장도 유지 (작성자 현황 추적용)
-      await window.fbSet(`reports/daily/${TKEY}/${user.replace(/[\s.()]/g,'_')}/status`,'done');
-      await window.fbSet(`reports/daily/${TKEY}/${user.replace(/[\s.()]/g,'_')}/writer`,user);
+      // 2. 작성자 현황 추적용 (status/writer만)
+      const ukey=user.replace(/[\s.()]/g,'_');
+      await window.fbSet(`reports/daily/${TKEY}/${ukey}/writer`, user);
+      await window.fbSet(`reports/daily/${TKEY}/${ukey}/status`, 'done');
     }
     btn.textContent='💾 저장'; btn.disabled=false;
-    const bid=window.IS_DEMO?'bWn':'bOk';
-    const b=document.getElementById(bid); b.classList.add('show');
-    setTimeout(()=>b.classList.remove('show'),3500);
+    if(!window.IS_DEMO){
+      const b=document.getElementById('bOk');
+      b.classList.add('show');
+      setTimeout(()=>b.classList.remove('show'),3000);
+    }
+    // 화면 즉시 갱신
     loadLive();
-    loadDailyShared(); // 저장 후 화면 즉시 갱신
+    const refreshed = await window.fbGet(`reports/daily/${TKEY}/shared`);
+    if(refreshed) loadSaved(refreshed);
   }else if(activeTab==='tb-weekly'){
     const rep=document.getElementById('reporter').value;
     if(!rep){alert('보고자를 입력해주세요.');return;}

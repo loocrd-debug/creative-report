@@ -458,3 +458,19 @@ exports.generateWeeklyHWPX=functions.region("asia-northeast1").runWith({memory:"
 // force-hash-change-v2
 // b64-stored-deploy
 // clean-deploy-v3
+
+exports.generateWeeklyHWPXv3=functions.region("asia-northeast1").runWith({memory:"512MB",timeoutSeconds:60}).https.onRequest(async(req,res)=>{
+  res.set("Access-Control-Allow-Origin","*");
+  res.set("Access-Control-Allow-Methods","POST,OPTIONS");
+  res.set("Access-Control-Allow-Headers","Content-Type");
+  if(req.method==="OPTIONS"){res.status(204).send("");return;}
+  if(req.method!=="POST"){res.status(405).send("Method Not Allowed");return;}
+  try{
+    const {data}=req.body;
+    const buf=buildWeeklyHWPX(data||{});
+    const fn=encodeURIComponent("주간상황보고_크리에이티브그룹.hwpx");
+    res.set("Content-Type","application/octet-stream");
+    res.set("Content-Disposition",`attachment; filename*=UTF-8''${fn}`);
+    res.send(buf);
+  }catch(e){console.error(e);res.status(500).json({error:e.message});}
+});

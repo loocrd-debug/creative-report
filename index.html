@@ -891,21 +891,13 @@ async function loadByDate(){
   setTimeout(()=>banner.remove(), 4000);
 }
 async function onUserSelChange(){
-  // 기존 저장 데이터 로드
-  if(typeof loadSaved === 'function') await loadSaved();
-  // editing 상태 저장
+  // 작성자 선택 = editing 상태 표시만 (화면 데이터는 shared 그대로)
   const user=document.getElementById('userSel').value;
   if(!user||window.IS_DEMO) return;
   const key=user.replace(/[\s.()]/g,'_');
-  const existing=await window.fbGet(`reports/daily/${TKEY}/${key}`);
-  if(!existing||existing.status!=='done'){
-    const writerObj=members.find(m=>m.n+' '+m.r===user)||{};
-    // editing 상태만 개인 키에 저장
-    await window.fbSet(`reports/daily/${TKEY}/${key}/status`,'editing');
-    await window.fbSet(`reports/daily/${TKEY}/${key}/writer`,user);
-    loadLive();
-  }
-  // onDisconnect 등록
+  await window.fbSet(`reports/daily/${TKEY}/${key}/status`,'editing');
+  await window.fbSet(`reports/daily/${TKEY}/${key}/writer`,user);
+  loadLive();
   if(window.firebaseDB){
     const ref=window.firebaseDB.ref(`reports/daily/${TKEY}/${key}/status`);
     ref.onDisconnect().remove();

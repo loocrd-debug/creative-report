@@ -465,26 +465,13 @@ function getRecentWeekdayKey(fromDate) {
 async function loadDailyShared() {
   if(!window.fbGet) return;
   try {
-    // shared 키에서 공유 문서 로드
+    // 오늘 shared 읽기
     let data = await window.fbGet(`reports/daily/${TKEY}/shared`);
-    if(data) {
-      loadSaved(data);
-      return;
-    }
-    // shared 없으면 취합해서 로드 (기존 방식 fallback)
-    const todayData = await window.fbGet(`reports/daily/${TKEY}`);
-    const entries = todayData ? Object.values(todayData).filter(e=>e&&e.writer) : [];
-    if(entries.length > 0) {
-      const merged = await mergeDataByKey(TKEY);
-      if(merged) loadSaved(merged);
-    } else {
-      // 아무도 안 썼으면 최근 평일 데이터 로드
-      const prevKey = getRecentWeekdayKey();
-      const sharedPrev = await window.fbGet(`reports/daily/${prevKey}/shared`);
-      if(sharedPrev) { loadSaved(sharedPrev); return; }
-      const merged = await mergeDataByKey(prevKey);
-      if(merged) loadSaved(merged);
-    }
+    if(data){ loadSaved(data); return; }
+    // 오늘 shared 없으면 최근 평일 shared 읽기
+    const prevKey = getRecentWeekdayKey();
+    const prev = await window.fbGet(`reports/daily/${prevKey}/shared`);
+    if(prev) loadSaved(prev);
   } catch(e) {
     console.log('loadDailyShared 오류:', e.message);
   }
@@ -1493,25 +1480,14 @@ async function doSave(){
     const data=getDailyData();
     data.writer=user;
     data.status='done';
-    let ok=false;
-    if(window.fbSet){
-      // 1. shared 키에 공유 문서 저장
-      ok=await window.fbSet(`reports/daily/${TKEY}/shared`, data);
-      // 2. 작성자 현황 추적용 (status/writer만)
-      const ukey=user.replace(/[\s.()]/g,'_');
-      await window.fbSet(`reports/daily/${TKEY}/${ukey}/writer`, user);
-      await window.fbSet(`reports/daily/${TKEY}/${ukey}/status`, 'done');
-    }
+    // shared 하나에만 저장 - 덮어쓰기
+    if(window.fbSet) await window.fbSet(`reports/daily/${TKEY}/shared`, data);
     btn.textContent='💾 저장'; btn.disabled=false;
-    if(!window.IS_DEMO){
-      const b=document.getElementById('bOk');
-      b.classList.add('show');
-      setTimeout(()=>b.classList.remove('show'),3000);
-    }
-    // 화면 즉시 갱신
+    const bid=window.IS_DEMO?'bWn':'bOk';
+    const b=document.getElementById(bid);
+    b.classList.add('show'); setTimeout(()=>b.classList.remove('show'),3000);
     loadLive();
-    const refreshed = await window.fbGet(`reports/daily/${TKEY}/shared`);
-    if(refreshed) loadSaved(refreshed);
+    loadDailyShared();
   }else if(activeTab==='tb-weekly'){
     const rep=document.getElementById('reporter').value;
     if(!rep){alert('보고자를 입력해주세요.');return;}

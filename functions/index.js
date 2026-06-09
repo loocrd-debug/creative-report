@@ -229,11 +229,14 @@ function buildHWPX(data){
   // 3. 제안요약
   reps.push([POS.prop_pS, POS.prop_pE, setLastT(TPL.t75,"    - "+(data.proposal_summary||"해당 없음"))]);
 
-  // 3-1. 제안표 데이터행 (첫 번째 제안만 - 원본에 1행)
-  const prop0 = (data.proposals||[])[0]||{};
+  // 3-1. 제안표 데이터행 - 여러 제안을 / 로 합치기
+  const props = data.proposals||[];
+  const propTitles = props.map(p=>p.title||'').filter(Boolean).join(' / ');
+  const propPersons = props.map(p=>p.person||p.name||'').filter(Boolean).join(', ');
+  const propDates = props.map(p=>p.date||'').filter(Boolean).join(', ');
+  const propVals = [propTitles, propPersons, propDates];
   POS.prop_row.forEach(([ps,pe],ci)=>{
-    const vals=[prop0.title||"",prop0.person||"",prop0.date||""];
-    reps.push([ps,pe,"<hp:t>"+ex(vals[ci])+"</hp:t>"]);
+    reps.push([ps,pe,"<hp:t>"+ex(propVals[ci])+"</hp:t>"]);
   });
 
   // 4. 원본 현안이슈
@@ -510,4 +513,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780984181
+// deploy-1780984556

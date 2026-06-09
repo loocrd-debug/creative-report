@@ -230,19 +230,37 @@ function buildHWPX(data){
   // 3. 제안요약
   reps.push([POS.prop_pS, POS.prop_pE, setLastT(TPL.t75,"    - "+(data.proposal_summary||"해당 없음"))]);
 
-  // 3-1. 제안표 데이터행 - 여러 제안을 / 로 합치기
+  // 3-1. 제안표 데이터행 - proposals 수만큼 행 동적 생성
   const props = data.proposals||[];
-  const propTitles = props.map(p=>p.title||'').filter(Boolean).join(' / ');
-  const propPersons = props.map(p=>p.person||p.name||'').filter(Boolean).join(', ');
-  const propDates = props.map(p=>p.date||'').filter(Boolean).join(', ');
-  const propVals = [propTitles, propPersons, propDates];
-  // title lineseg 동적 교체
-  if(propTitles && POS.prop_lsa){
-    reps.push([POS.prop_lsa[0], POS.prop_lsa[1], makeLineSeg(propTitles)]);
+  const propList = props.length>0 ? props : [{title:'',person:'',date:''}];
+  // 첫 번째 proposal: 기존 위치 교체
+  const p0 = propList[0];
+  const p0vals = [p0.title||'', p0.person||p0.name||'', p0.date||''];
+  if(p0vals[0] && POS.prop_lsa){
+    reps.push([POS.prop_lsa[0], POS.prop_lsa[1], makeLineSeg(p0vals[0], 23656)]);
   }
   POS.prop_row.forEach(([ps,pe],ci)=>{
-    reps.push([ps,pe,"<hp:t>"+ex(propVals[ci])+"</hp:t>"]);
+    reps.push([ps,pe,"<hp:t>"+ex(p0vals[ci])+"</hp:t>"]);
   });
+  // 추가 proposals: 행 복사하여 삽입
+  if(propList.length>1){
+    const trTpl = "<hp:tr><hp:tc name=\"\" header=\"0\" hasMargin=\"1\" protect=\"0\" editable=\"0\" dirty=\"0\" borderFillIDRef=\"8\"><hp:subList id=\"\" textDirection=\"HORIZONTAL\" lineWrap=\"BREAK\" vertAlign=\"CENTER\" linkListIDRef=\"0\" linkListNextIDRef=\"0\" textWidth=\"0\" textHeight=\"0\" hasTextRef=\"0\" hasNumRef=\"0\"><hp:p id=\"2147483648\" paraPrIDRef=\"0\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"0\"><hp:t>\uc784\ub300\ub4f1\ub85d \uc720\uc9c0\uad00\ub9ac</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"1000\" textheight=\"1000\" baseline=\"850\" spacing=\"600\" horzpos=\"0\" horzsize=\"23656\" flags=\"393216\"/></hp:linesegarray></hp:p></hp:subList><hp:cellAddr colAddr=\"0\" rowAddr=\"1\"/><hp:cellSpan colSpan=\"1\" rowSpan=\"1\"/><hp:cellSz width=\"23936\" height=\"1973\"/><hp:cellMargin left=\"140\" right=\"140\" top=\"0\" bottom=\"0\"/></hp:tc><hp:tc name=\"\" header=\"0\" hasMargin=\"1\" protect=\"0\" editable=\"0\" dirty=\"0\" borderFillIDRef=\"6\"><hp:subList id=\"\" textDirection=\"HORIZONTAL\" lineWrap=\"BREAK\" vertAlign=\"CENTER\" linkListIDRef=\"0\" linkListNextIDRef=\"0\" textWidth=\"0\" textHeight=\"0\" hasTextRef=\"0\" hasNumRef=\"0\"><hp:p id=\"2147483648\" paraPrIDRef=\"1\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"70\"><hp:t>\uae40\uc120\uc9c4, \uc774\uc0c1\uc544</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"1000\" textheight=\"1000\" baseline=\"850\" spacing=\"600\" horzpos=\"0\" horzsize=\"15572\" flags=\"393216\"/></hp:linesegarray></hp:p></hp:subList><hp:cellAddr colAddr=\"1\" rowAddr=\"1\"/><hp:cellSpan colSpan=\"1\" rowSpan=\"1\"/><hp:cellSz width=\"15851\" height=\"1973\"/><hp:cellMargin left=\"138\" right=\"138\" top=\"0\" bottom=\"0\"/></hp:tc><hp:tc name=\"\" header=\"0\" hasMargin=\"1\" protect=\"0\" editable=\"0\" dirty=\"0\" borderFillIDRef=\"6\"><hp:subList id=\"\" textDirection=\"HORIZONTAL\" lineWrap=\"BREAK\" vertAlign=\"CENTER\" linkListIDRef=\"0\" linkListNextIDRef=\"0\" textWidth=\"0\" textHeight=\"0\" hasTextRef=\"0\" hasNumRef=\"0\"><hp:p id=\"2147483648\" paraPrIDRef=\"1\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"70\"><hp:t>6\uc6d43\uc77c</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"1000\" textheight=\"1000\" baseline=\"850\" spacing=\"600\" horzpos=\"0\" horzsize=\"10428\" flags=\"393216\"/></hp:linesegarray></hp:p></hp:subList><hp:cellAddr colAddr=\"2\" rowAddr=\"1\"/><hp:cellSpan colSpan=\"1\" rowSpan=\"1\"/><hp:cellSz width=\"10707\" height=\"1973\"/><hp:cellMargin left=\"138\" right=\"138\" top=\"0\" bottom=\"0\"/></hp:tc></hp:tr>";
+    const relPos = [[399, 421], [1204, 1225], [2008, 2025]];
+    let extraRows = '';
+    for(let pi=1;pi<propList.length;pi++){
+      const p=propList[pi];
+      const pvals=[p.title||'',p.person||p.name||'',p.date||''];
+      let row=trTpl;
+      // 뒤에서 앞으로 교체
+      for(let ci=relPos.length-1;ci>=0;ci--){
+        const [rs,re_]=relPos[ci];
+        row=row.slice(0,rs)+"<hp:t>"+ex(pvals[ci])+"</hp:t>"+row.slice(re_);
+      }
+      extraRows+=row;
+    }
+    // </hp:tbl> 직전에 삽입
+    reps.push([49416,49416,extraRows]);
+  }
 
   // 4. 원본 현안이슈
   reps.push([POS.origS_pE, POS.origE_pS, makeIssues(data.orig_issues,TPL.t14,TPL.t89)]);
@@ -518,4 +536,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780985044
+// deploy-1780985556

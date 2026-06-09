@@ -156,8 +156,8 @@ function patchZip(zipBuf, filename, newXmlStr) {
   const cdBufs = cdEntries.map(e => {
     const cd = Buffer.alloc(46+e.nl);
     cd.writeUInt32LE(0x02014b50,0); cd.writeUInt16LE(20,4); cd.writeUInt16LE(20,6);
-    cd.writeUInt16LE(0,8); cd.writeUInt16LE(0,10); cd.writeUInt16LE(0,12); cd.writeUInt16LE(0,14);
-    cd.writeUInt32LE(e.crc,16); cd.writeUInt32LE(e.size,20); cd.writeUInt32LE(e.size,24);
+    cd.writeUInt16LE(0,8); cd.writeUInt16LE(e.mt||0,10); cd.writeUInt16LE(0,12); cd.writeUInt16LE(0,14);
+    cd.writeUInt32LE(e.crc,16); cd.writeUInt32LE(e.csize||e.size,20); cd.writeUInt32LE(e.size,24);
     cd.writeUInt16LE(e.nl,28); cd.writeUInt16LE(0,30); cd.writeUInt16LE(0,32);
     cd.writeUInt16LE(0,34); cd.writeUInt16LE(0,36); cd.writeUInt32LE(0,38); cd.writeUInt32LE(e.off,42);
     Buffer.from(e.fn).copy(cd,46); return cd;
@@ -550,4 +550,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780985791
+// deploy-1780985805

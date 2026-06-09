@@ -190,40 +190,32 @@ function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
 
-  // CELL_INFO 동적 계산 - tc 기반으로 정확하게 찾기
+  // CELL_INFO 동적 계산 - tc 기반
   (function recalcCellInfo(){
-    const hdrPos = xml.indexOf('<hp:t>일 자</hp:t>');
+    const hdrPos=xml.indexOf('<hp:t>일 자</hp:t>');
     if(hdrPos<0) return;
-    const tblStart = xml.lastIndexOf('<hp:tbl ',hdrPos);
-    const tblEnd = xml.indexOf('</hp:tbl>',hdrPos)+9;
-    const tblXml = xml.slice(tblStart,tblEnd);
-    const trStarts = [];
-    let p=0;
-    while((p=tblXml.indexOf('<hp:tr>',p))>=0){ trStarts.push(tblStart+p); p++; }
-    for(let ri=1;ri<Math.min(trStarts.length,7);ri++){
-      const trS=trStarts[ri];
-      const trE=ri+1<trStarts.length?trStarts[ri+1]:tblEnd;
-      const tcIdx=[];
-      let tp=trS;
-      while((tp=xml.indexOf('<hp:tc ',tp))>=0&&tp<trE){ tcIdx.push(tp); tp++; }
+    const tblStart=xml.lastIndexOf('<hp:tbl ',hdrPos);
+    const tblEnd=xml.indexOf('</hp:tbl>',hdrPos)+9;
+    const trList=[];
+    let tp=tblStart;
+    while((tp=xml.indexOf('<hp:tr>',tp))>=0&&tp<tblEnd){trList.push(tp);tp++;}
+    for(let ri=1;ri<trList.length&&ri<=6;ri++){
+      const trS=trList[ri],trE=ri+1<trList.length?trList[ri+1]:tblEnd;
+      const tcList=[];let cp=trS;
+      while((cp=xml.indexOf('<hp:tc ',cp))>=0&&cp<trE){tcList.push(cp);cp++;}
       const rowCells=[];
-      for(let ci=0;ci<Math.min(tcIdx.length,3);ci++){
-        const tcS=tcIdx[ci];
-        const tcE=xml.indexOf('</hp:tc>',tcS)+8;
-        const tList=[];
-        const re2=/<hp:t>[^<]*<\/hp:t>/g;
-        re2.lastIndex=tcS;
-        let m2;
+      for(let ci=0;ci<Math.min(tcList.length,3);ci++){
+        const tcS=tcList[ci],tcE=xml.indexOf('</hp:tc>',tcS)+8;
+        const tList=[];const re2=/<hp:t>[^<]*<\/hp:t>/g;re2.lastIndex=tcS;let m2;
         while((m2=re2.exec(xml))!==null&&m2.index<tcE){
-          if(xml.slice(m2.index,m2.index+5)==='<hp:t>') tList.push([m2.index,m2.index+m2[0].length]);
+          if(xml.slice(m2.index,m2.index+5)==='<hp:t>')tList.push([m2.index,m2.index+m2[0].length]);
         }
-        rowCells.push({type:'t',pos:tList.length?tList:[]});
+        rowCells.push({type:'t',pos:tList});
       }
       CELL_INFO[ri-1]=rowCells;
     }
-    // DATE_T 재계산
     const dtM=/<hp:t>\(20\d{2}\./.exec(xml);
-    if(dtM){ DATE_T[0]=dtM.index; DATE_T[1]=xml.indexOf('<\/hp:t>',dtM.index)+7; }
+    if(dtM){DATE_T[0]=dtM.index;DATE_T[1]=xml.indexOf('<\/hp:t>',dtM.index)+7;}
   })();
 
   // 모든 교체를 뒤→앞 순서로 한번에
@@ -553,4 +545,3 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780969874

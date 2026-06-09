@@ -190,22 +190,21 @@ function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
 
-  // CELL_INFO 동적 계산 - tc 기반
+  // CELL_INFO 동적 계산 - tc 기반 정확한 위치
   (function recalcCellInfo(){
     const hdrPos=xml.indexOf('<hp:t>일 자</hp:t>');
     if(hdrPos<0) return;
     const tblStart=xml.lastIndexOf('<hp:tbl ',hdrPos);
     const tblEnd=xml.indexOf('</hp:tbl>',hdrPos)+9;
-    const trList=[];
-    let tp=tblStart;
+    const trList=[];let tp=tblStart;
     while((tp=xml.indexOf('<hp:tr>',tp))>=0&&tp<tblEnd){trList.push(tp);tp++;}
-    for(let ri=1;ri<trList.length&&ri<=6;ri++){
-      const trS=trList[ri],trE=ri+1<trList.length?trList[ri+1]:tblEnd;
+    for(let ri=1;ri<=Math.min(trList.length-1,6);ri++){
+      const trS=trList[ri],trE=ri<trList.length-1?trList[ri+1]:tblEnd;
       const tcList=[];let cp=trS;
       while((cp=xml.indexOf('<hp:tc ',cp))>=0&&cp<trE){tcList.push(cp);cp++;}
       const rowCells=[];
       for(let ci=0;ci<Math.min(tcList.length,3);ci++){
-        const tcS=tcList[ci],tcE=xml.indexOf('</hp:tc>',tcS)+8;
+        const tcS=tcList[ci],tcE=Math.min(xml.indexOf('</hp:tc>',tcS)+8,trE);
         const tList=[];const re2=/<hp:t>[^<]*<\/hp:t>/g;re2.lastIndex=tcS;let m2;
         while((m2=re2.exec(xml))!==null&&m2.index<tcE){
           if(xml.slice(m2.index,m2.index+5)==='<hp:t>')tList.push([m2.index,m2.index+m2[0].length]);

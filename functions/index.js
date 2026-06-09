@@ -6,7 +6,7 @@ const ORIG_B64 = "UEsDBBQAAAAAADAHyVyC8EFHEwAAABMAAAAIAAAAbWltZXR5cGVhcHBsaWNhdG
 
 // 주요일정 각 셀 첫번째 hp:t 위치
 const DATE_T = [4331, 4363]; // 날짜 hp:t 위치
-const CELL_INFO = [[{"type": "t", "pos": [[0, 13]]}, {"type": "t", "pos": [[0, 13]]}, {"type": "t", "pos": [[0, 13]]}], [{"type": "t", "pos": [[0, 13]]}, {"type": "t", "pos": [[0, 13]]}, {"type": "t", "pos": [[0, 13]]}], [{"type": "t", "pos": [[0, 13]]}, {"type": "t", "pos": [[0, 13]]}, {"type": "t", "pos": [[0, 13]]}], [{"type": "t", "pos": [[0, 13]]}, {"type": "t", "pos": [[0, 13]]}, {"type": "t", "pos": [[0, 13]]}], [{"type": "t", "pos": [[26443, 26456]]}, {"type": "t", "pos": [[27218, 27231]]}, {"type": "t", "pos": [[27995, 28008]]}], [{"type": "t", "pos": [[28776, 28789]]}, {"type": "t", "pos": [[29542, 29555]]}, {"type": "t", "pos": [[30310, 30323]]}]];
+const CELL_INFO = [[{"type": "t", "pos": [[16215, 16236]]}, {"type": "t", "pos": [[17009, 17096]]}, {"type": "t", "pos": [[18021, 18037]]}], [{"type": "t", "pos": [[18826, 18847]]}, {"type": "t", "pos": [[19629, 19712]]}, {"type": "t", "pos": [[20646, 20662]]}], [{"type": "t", "pos": [[21451, 21472]]}, {"type": "t", "pos": [[22255, 22339]]}, {"type": "t", "pos": [[23273, 23289]]}], [{"type": "t", "pos": [[24078, 24095]]}, {"type": "t", "pos": [[24878, 24903]]}, {"type": "t", "pos": [[32700, 32717]]}], [{"type": "t", "pos": []}, {"type": "t", "pos": []}, {"type": "t", "pos": []}], [{"type": "t", "pos": []}, {"type": "t", "pos": []}, {"type": "t", "pos": []}]];
 
 // 각 섹션 범위
 const POS = {

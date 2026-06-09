@@ -124,19 +124,33 @@ function patchZip(zipBuf, filename, newXmlStr) {
     const dOff = o+30+nl+xl;
     // 원본 압축 해제 후 비압축으로 저장
     const compData = zipBuf.slice(dOff, dOff+cs);
-    const rawData = (fn === filename) ? newData : ((mt === 8) ? zlib.inflateRawSync(compData) : compData);
+    let rawData, compOut, useComp;
+    if(fn === filename){
+      rawData = newData;
+      compOut = zlib.deflateRawSync(newData, {level:6});
+      useComp = 8;
+    } else if(mt === 8){
+      rawData = zlib.inflateRawSync(compData);
+      compOut = zlib.deflateRawSync(rawData, {level:6});
+      useComp = 8;
+    } else {
+      rawData = compData;
+      compOut = compData;
+      useComp = 0;
+    }
     const fileCrc = (fn === filename) ? newCrc : crc32(rawData);
     const fileSize = rawData.length;
-    // 로컬 헤더 (STORED)
+    const compSize = compOut.length;
+    // 로컬 헤더 (DEFLATE)
     const hdr = Buffer.alloc(30+nl);
     hdr.writeUInt32LE(0x04034b50,0); hdr.writeUInt16LE(20,4); hdr.writeUInt16LE(0,6);
-    hdr.writeUInt16LE(0,8); hdr.writeUInt16LE(0,10); hdr.writeUInt16LE(0,12);
-    hdr.writeUInt32LE(fileCrc,14); hdr.writeUInt32LE(fileSize,18); hdr.writeUInt32LE(fileSize,22);
+    hdr.writeUInt16LE(useComp,8); hdr.writeUInt16LE(0,10); hdr.writeUInt16LE(0,12);
+    hdr.writeUInt32LE(fileCrc,14); hdr.writeUInt32LE(compSize,18); hdr.writeUInt32LE(fileSize,22);
     hdr.writeUInt16LE(nl,26); hdr.writeUInt16LE(0,28);
     zipBuf.copy(hdr,30,o+30,o+30+nl);
-    cdEntries.push({fn,nl,crc:fileCrc,size:fileSize,off:offset});
-    parts.push(hdr); parts.push(rawData);
-    offset += hdr.length + rawData.length;
+    cdEntries.push({fn,nl,crc:fileCrc,size:fileSize,csize:compSize,off:offset,mt:useComp});
+    parts.push(hdr); parts.push(compOut);
+    offset += hdr.length + compOut.length;
     o = dOff + cs;
   }
   const cdBufs = cdEntries.map(e => {
@@ -536,4 +550,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780985556
+// deploy-1780985791

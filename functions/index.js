@@ -16,7 +16,8 @@ const POS = {
   prop_pS:43102, prop_pE:43445,
   biz_pE:50311, sec_end:62584,
   // 제안표 데이터행 셀 위치 (제안명, 담당자, 날짜)
-  prop_row: [[47392,47414],[48197,48218],[49001,49018]]
+  prop_row: [[47392,47414],[48197,48218],[49001,49018]],
+  prop_lsa: [47423,47602]
 };
 
 // 템플릿 (원본 구조 그대로)
@@ -235,6 +236,10 @@ function buildHWPX(data){
   const propPersons = props.map(p=>p.person||p.name||'').filter(Boolean).join(', ');
   const propDates = props.map(p=>p.date||'').filter(Boolean).join(', ');
   const propVals = [propTitles, propPersons, propDates];
+  // title lineseg 동적 교체
+  if(propTitles && POS.prop_lsa){
+    reps.push([POS.prop_lsa[0], POS.prop_lsa[1], makeLineSeg(propTitles)]);
+  }
   POS.prop_row.forEach(([ps,pe],ci)=>{
     reps.push([ps,pe,"<hp:t>"+ex(propVals[ci])+"</hp:t>"]);
   });
@@ -513,4 +518,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780984556
+// deploy-1780985044

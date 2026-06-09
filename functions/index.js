@@ -105,71 +105,16 @@ function readZip(zipBuf, filename){
 
 // ZIP에서 파일 교체
 // ZIP 파일에서 특정 파일 교체 - 모든 파일 비압축(STORED) 방식
-function patchZip(zipBuf, filename, newXmlStr) {
-  const newData = Buffer.from(newXmlStr, "utf-8");
-  const newCrc = crc32(newData);
-  const parts = [], cdEntries = [];
-  let offset = 0;
-  const v = new DataView(zipBuf.buffer || zipBuf);
-  let o = 0;
-  while (o < zipBuf.length - 4) {
-    const sig = v.getUint32(o, true);
-    if (sig !== 0x04034b50) break;
-    const mt = v.getUint16(o+8, true);
-    const crc = v.getUint32(o+14, true);
-    const cs = v.getUint32(o+18, true);
-    const nl = v.getUint16(o+26, true);
-    const xl = v.getUint16(o+28, true);
-    const fn = zipBuf.slice(o+30, o+30+nl).toString("utf-8");
-    const dOff = o+30+nl+xl;
-    // 원본 압축 해제 후 비압축으로 저장
-    const compData = zipBuf.slice(dOff, dOff+cs);
-    let rawData, compOut, useComp;
-    if(fn === filename){
-      rawData = newData;
-      compOut = zlib.deflateRawSync(newData, {level:6});
-      useComp = 8;
-    } else if(mt === 8){
-      rawData = zlib.inflateRawSync(compData);
-      compOut = zlib.deflateRawSync(rawData, {level:6});
-      useComp = 8;
-    } else {
-      rawData = compData;
-      compOut = compData;
-      useComp = 0;
-    }
-    const fileCrc = (fn === filename) ? newCrc : crc32(rawData);
-    const fileSize = rawData.length;
-    const compSize = compOut.length;
-    // 로컬 헤더 (DEFLATE)
-    const hdr = Buffer.alloc(30+nl);
-    hdr.writeUInt32LE(0x04034b50,0); hdr.writeUInt16LE(20,4); hdr.writeUInt16LE(0,6);
-    hdr.writeUInt16LE(useComp,8); hdr.writeUInt16LE(0,10); hdr.writeUInt16LE(0,12);
-    hdr.writeUInt32LE(fileCrc,14); hdr.writeUInt32LE(compSize,18); hdr.writeUInt32LE(fileSize,22);
-    hdr.writeUInt16LE(nl,26); hdr.writeUInt16LE(0,28);
-    zipBuf.copy(hdr,30,o+30,o+30+nl);
-    cdEntries.push({fn,nl,crc:fileCrc,size:fileSize,csize:compSize,off:offset,mt:useComp});
-    parts.push(hdr); parts.push(compOut);
-    offset += hdr.length + compOut.length;
-    o = dOff + cs;
-  }
-  const cdBufs = cdEntries.map(e => {
-    const cd = Buffer.alloc(46+e.nl);
-    cd.writeUInt32LE(0x02014b50,0); cd.writeUInt16LE(20,4); cd.writeUInt16LE(20,6);
-    cd.writeUInt16LE(0,8); cd.writeUInt16LE(e.mt||0,10); cd.writeUInt16LE(0,12); cd.writeUInt16LE(0,14);
-    cd.writeUInt32LE(e.crc,16); cd.writeUInt32LE(e.csize||e.size,20); cd.writeUInt32LE(e.size,24);
-    cd.writeUInt16LE(e.nl,28); cd.writeUInt16LE(0,30); cd.writeUInt16LE(0,32);
-    cd.writeUInt16LE(0,34); cd.writeUInt16LE(0,36); cd.writeUInt32LE(0,38); cd.writeUInt32LE(e.off,42);
-    Buffer.from(e.fn).copy(cd,46); return cd;
+async function patchZip(zipBuf, filename, newXmlStr){
+  const JSZip = require('jszip');
+  const zip = await JSZip.loadAsync(zipBuf);
+  zip.file(filename, newXmlStr, {binary:false});
+  return await zip.generateAsync({
+    type:'nodebuffer',
+    compression:'DEFLATE',
+    compressionOptions:{level:6}
   });
-  const cdBuf = Buffer.concat(cdBufs);
-  const eocd = Buffer.alloc(22);
-  eocd.writeUInt32LE(0x06054b50,0); eocd.writeUInt16LE(0,4); eocd.writeUInt16LE(0,6);
-  eocd.writeUInt16LE(cdEntries.length,8); eocd.writeUInt16LE(cdEntries.length,10);
-  eocd.writeUInt32LE(cdBuf.length,12); eocd.writeUInt32LE(offset,16); eocd.writeUInt16LE(0,20);
-  return Buffer.concat([...parts, cdBuf, eocd]);
 }
-
 function crc32(buf){
   if(!crc32._t){
     crc32._t=new Uint32Array(256);
@@ -194,7 +139,7 @@ function makeLineSeg(text){
 // schedule detail linesegarray 위치 (원본 XML 기준)
 SCHED_LSA = [[], [[20800, 20979]], [[23179, 23358]], [[25953, 26132]], [[28401, 28580]], [[30826, 31005]], [[33201, 33380]]];
 
-function buildHWPX(data){
+async function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
 
@@ -290,7 +235,7 @@ function buildHWPX(data){
   reps.sort((a,b)=>b[0]-a[0]);
   for(const [f,t,c] of reps) xml=xml.slice(0,f)+c+xml.slice(t);
 
-    return patchZip(origBuf, "Contents/section0.xml", xml);
+    return await patchZip(origBuf, "Contents/section0.xml", xml);
 }
 
 exports.generateHWPX = functions
@@ -550,4 +495,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780985805
+// deploy-1780988535

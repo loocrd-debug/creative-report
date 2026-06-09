@@ -190,24 +190,26 @@ function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
 
-  // CELL_INFO 동적 계산 - tc 기반 정확한 위치
+  // CELL_INFO 동적 계산 - tc 슬라이싱 방식
   (function recalcCellInfo(){
     const hdrPos=xml.indexOf('<hp:t>일 자</hp:t>');
     if(hdrPos<0) return;
     const tblStart=xml.lastIndexOf('<hp:tbl ',hdrPos);
-    const tblEnd=xml.indexOf('</hp:tbl>',hdrPos)+9;
+    const tblEnd=tblStart+xml.slice(tblStart).indexOf('</hp:tbl>')+9;
     const trList=[];let tp=tblStart;
     while((tp=xml.indexOf('<hp:tr>',tp))>=0&&tp<tblEnd){trList.push(tp);tp++;}
     for(let ri=1;ri<=Math.min(trList.length-1,6);ri++){
       const trS=trList[ri],trE=ri<trList.length-1?trList[ri+1]:tblEnd;
-      const tcList=[];let cp=trS;
-      while((cp=xml.indexOf('<hp:tc ',cp))>=0&&cp<trE){tcList.push(cp);cp++;}
+      const trStr=xml.slice(trS,trE);
+      const tcList=[];let cp=0;
+      while((cp=trStr.indexOf('<hp:tc ',cp))>=0){tcList.push(trS+cp);cp++;}
       const rowCells=[];
       for(let ci=0;ci<Math.min(tcList.length,3);ci++){
-        const tcS=tcList[ci],tcE=Math.min(xml.indexOf('</hp:tc>',tcS)+8,trE);
-        const tList=[];const re2=/<hp:t>[^<]*<\/hp:t>/g;re2.lastIndex=tcS;let m2;
-        while((m2=re2.exec(xml))!==null&&m2.index<tcE){
-          if(xml.slice(m2.index,m2.index+5)==='<hp:t>')tList.push([m2.index,m2.index+m2[0].length]);
+        const tcS=tcList[ci];
+        const tcContent=xml.slice(tcS,tcS+xml.slice(tcS).indexOf('</hp:tc>')+8);
+        const tList=[];const re2=/<hp:t>[^<]*<\/hp:t>/g;let m2;
+        while((m2=re2.exec(tcContent))!==null){
+          if(tcContent.slice(m2.index,m2.index+5)==='<hp:t>')tList.push([tcS+m2.index,tcS+m2.index+m2[0].length]);
         }
         rowCells.push({type:'t',pos:tList});
       }

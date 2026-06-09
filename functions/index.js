@@ -16,8 +16,7 @@ const POS = {
   prop_pS:43102, prop_pE:43445,
   biz_pE:50311, sec_end:62584,
   // 제안표 데이터행 셀 위치 (제안명, 담당자, 날짜)
-  prop_row: [[47392,47414],[48197,48218],[49001,49018]],
-  prop_lsa: [47423,47602]
+  prop_row: [[47392,47414],[48197,48218],[49001,49018]]
 };
 
 // 템플릿 (원본 구조 그대로)
@@ -105,16 +104,57 @@ function readZip(zipBuf, filename){
 
 // ZIP에서 파일 교체
 // ZIP 파일에서 특정 파일 교체 - 모든 파일 비압축(STORED) 방식
-async function patchZip(zipBuf, filename, newXmlStr){
-  const JSZip = require('jszip');
-  const zip = await JSZip.loadAsync(zipBuf);
-  zip.file(filename, newXmlStr, {binary:false});
-  return await zip.generateAsync({
-    type:'nodebuffer',
-    compression:'DEFLATE',
-    compressionOptions:{level:6}
+function patchZip(zipBuf, filename, newXmlStr) {
+  const newData = Buffer.from(newXmlStr, "utf-8");
+  const newCrc = crc32(newData);
+  const parts = [], cdEntries = [];
+  let offset = 0;
+  const v = new DataView(zipBuf.buffer || zipBuf);
+  let o = 0;
+  while (o < zipBuf.length - 4) {
+    const sig = v.getUint32(o, true);
+    if (sig !== 0x04034b50) break;
+    const mt = v.getUint16(o+8, true);
+    const crc = v.getUint32(o+14, true);
+    const cs = v.getUint32(o+18, true);
+    const nl = v.getUint16(o+26, true);
+    const xl = v.getUint16(o+28, true);
+    const fn = zipBuf.slice(o+30, o+30+nl).toString("utf-8");
+    const dOff = o+30+nl+xl;
+    // 원본 압축 해제 후 비압축으로 저장
+    const compData = zipBuf.slice(dOff, dOff+cs);
+    const rawData = (fn === filename) ? newData : ((mt === 8) ? zlib.inflateRawSync(compData) : compData);
+    const fileCrc = (fn === filename) ? newCrc : crc32(rawData);
+    const fileSize = rawData.length;
+    // 로컬 헤더 (STORED)
+    const hdr = Buffer.alloc(30+nl);
+    hdr.writeUInt32LE(0x04034b50,0); hdr.writeUInt16LE(20,4); hdr.writeUInt16LE(0,6);
+    hdr.writeUInt16LE(0,8); hdr.writeUInt16LE(0,10); hdr.writeUInt16LE(0,12);
+    hdr.writeUInt32LE(fileCrc,14); hdr.writeUInt32LE(fileSize,18); hdr.writeUInt32LE(fileSize,22);
+    hdr.writeUInt16LE(nl,26); hdr.writeUInt16LE(0,28);
+    zipBuf.copy(hdr,30,o+30,o+30+nl);
+    cdEntries.push({fn,nl,crc:fileCrc,size:fileSize,off:offset});
+    parts.push(hdr); parts.push(rawData);
+    offset += hdr.length + rawData.length;
+    o = dOff + cs;
+  }
+  const cdBufs = cdEntries.map(e => {
+    const cd = Buffer.alloc(46+e.nl);
+    cd.writeUInt32LE(0x02014b50,0); cd.writeUInt16LE(20,4); cd.writeUInt16LE(20,6);
+    cd.writeUInt16LE(0,8); cd.writeUInt16LE(0,10); cd.writeUInt16LE(0,12); cd.writeUInt16LE(0,14);
+    cd.writeUInt32LE(e.crc,16); cd.writeUInt32LE(e.size,20); cd.writeUInt32LE(e.size,24);
+    cd.writeUInt16LE(e.nl,28); cd.writeUInt16LE(0,30); cd.writeUInt16LE(0,32);
+    cd.writeUInt16LE(0,34); cd.writeUInt16LE(0,36); cd.writeUInt32LE(0,38); cd.writeUInt32LE(e.off,42);
+    Buffer.from(e.fn).copy(cd,46); return cd;
   });
+  const cdBuf = Buffer.concat(cdBufs);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50,0); eocd.writeUInt16LE(0,4); eocd.writeUInt16LE(0,6);
+  eocd.writeUInt16LE(cdEntries.length,8); eocd.writeUInt16LE(cdEntries.length,10);
+  eocd.writeUInt32LE(cdBuf.length,12); eocd.writeUInt32LE(offset,16); eocd.writeUInt16LE(0,20);
+  return Buffer.concat([...parts, cdBuf, eocd]);
 }
+
 function crc32(buf){
   if(!crc32._t){
     crc32._t=new Uint32Array(256);
@@ -139,7 +179,7 @@ function makeLineSeg(text){
 // schedule detail linesegarray 위치 (원본 XML 기준)
 SCHED_LSA = [[], [[20800, 20979]], [[23179, 23358]], [[25953, 26132]], [[28401, 28580]], [[30826, 31005]], [[33201, 33380]]];
 
-async function buildHWPX(data){
+function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
 
@@ -189,37 +229,12 @@ async function buildHWPX(data){
   // 3. 제안요약
   reps.push([POS.prop_pS, POS.prop_pE, setLastT(TPL.t75,"    - "+(data.proposal_summary||"해당 없음"))]);
 
-  // 3-1. 제안표 데이터행 - proposals 수만큼 행 동적 생성
-  const props = data.proposals||[];
-  const propList = props.length>0 ? props : [{title:'',person:'',date:''}];
-  // 첫 번째 proposal: 기존 위치 교체
-  const p0 = propList[0];
-  const p0vals = [p0.title||'', p0.person||p0.name||'', p0.date||''];
-  if(p0vals[0] && POS.prop_lsa){
-    reps.push([POS.prop_lsa[0], POS.prop_lsa[1], makeLineSeg(p0vals[0], 23656)]);
-  }
+  // 3-1. 제안표 데이터행 (첫 번째 제안만 - 원본에 1행)
+  const prop0 = (data.proposals||[])[0]||{};
   POS.prop_row.forEach(([ps,pe],ci)=>{
-    reps.push([ps,pe,"<hp:t>"+ex(p0vals[ci])+"</hp:t>"]);
+    const vals=[prop0.title||"",prop0.person||"",prop0.date||""];
+    reps.push([ps,pe,"<hp:t>"+ex(vals[ci])+"</hp:t>"]);
   });
-  // 추가 proposals: 행 복사하여 삽입
-  if(propList.length>1){
-    const trTpl = "<hp:tr><hp:tc name=\"\" header=\"0\" hasMargin=\"1\" protect=\"0\" editable=\"0\" dirty=\"0\" borderFillIDRef=\"8\"><hp:subList id=\"\" textDirection=\"HORIZONTAL\" lineWrap=\"BREAK\" vertAlign=\"CENTER\" linkListIDRef=\"0\" linkListNextIDRef=\"0\" textWidth=\"0\" textHeight=\"0\" hasTextRef=\"0\" hasNumRef=\"0\"><hp:p id=\"2147483648\" paraPrIDRef=\"0\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"0\"><hp:t>\uc784\ub300\ub4f1\ub85d \uc720\uc9c0\uad00\ub9ac</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"1000\" textheight=\"1000\" baseline=\"850\" spacing=\"600\" horzpos=\"0\" horzsize=\"23656\" flags=\"393216\"/></hp:linesegarray></hp:p></hp:subList><hp:cellAddr colAddr=\"0\" rowAddr=\"1\"/><hp:cellSpan colSpan=\"1\" rowSpan=\"1\"/><hp:cellSz width=\"23936\" height=\"1973\"/><hp:cellMargin left=\"140\" right=\"140\" top=\"0\" bottom=\"0\"/></hp:tc><hp:tc name=\"\" header=\"0\" hasMargin=\"1\" protect=\"0\" editable=\"0\" dirty=\"0\" borderFillIDRef=\"6\"><hp:subList id=\"\" textDirection=\"HORIZONTAL\" lineWrap=\"BREAK\" vertAlign=\"CENTER\" linkListIDRef=\"0\" linkListNextIDRef=\"0\" textWidth=\"0\" textHeight=\"0\" hasTextRef=\"0\" hasNumRef=\"0\"><hp:p id=\"2147483648\" paraPrIDRef=\"1\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"70\"><hp:t>\uae40\uc120\uc9c4, \uc774\uc0c1\uc544</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"1000\" textheight=\"1000\" baseline=\"850\" spacing=\"600\" horzpos=\"0\" horzsize=\"15572\" flags=\"393216\"/></hp:linesegarray></hp:p></hp:subList><hp:cellAddr colAddr=\"1\" rowAddr=\"1\"/><hp:cellSpan colSpan=\"1\" rowSpan=\"1\"/><hp:cellSz width=\"15851\" height=\"1973\"/><hp:cellMargin left=\"138\" right=\"138\" top=\"0\" bottom=\"0\"/></hp:tc><hp:tc name=\"\" header=\"0\" hasMargin=\"1\" protect=\"0\" editable=\"0\" dirty=\"0\" borderFillIDRef=\"6\"><hp:subList id=\"\" textDirection=\"HORIZONTAL\" lineWrap=\"BREAK\" vertAlign=\"CENTER\" linkListIDRef=\"0\" linkListNextIDRef=\"0\" textWidth=\"0\" textHeight=\"0\" hasTextRef=\"0\" hasNumRef=\"0\"><hp:p id=\"2147483648\" paraPrIDRef=\"1\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"70\"><hp:t>6\uc6d43\uc77c</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"1000\" textheight=\"1000\" baseline=\"850\" spacing=\"600\" horzpos=\"0\" horzsize=\"10428\" flags=\"393216\"/></hp:linesegarray></hp:p></hp:subList><hp:cellAddr colAddr=\"2\" rowAddr=\"1\"/><hp:cellSpan colSpan=\"1\" rowSpan=\"1\"/><hp:cellSz width=\"10707\" height=\"1973\"/><hp:cellMargin left=\"138\" right=\"138\" top=\"0\" bottom=\"0\"/></hp:tc></hp:tr>";
-    const relPos = [[399, 421], [1204, 1225], [2008, 2025]];
-    let extraRows = '';
-    for(let pi=1;pi<propList.length;pi++){
-      const p=propList[pi];
-      const pvals=[p.title||'',p.person||p.name||'',p.date||''];
-      let row=trTpl;
-      // 뒤에서 앞으로 교체
-      for(let ci=relPos.length-1;ci>=0;ci--){
-        const [rs,re_]=relPos[ci];
-        row=row.slice(0,rs)+"<hp:t>"+ex(pvals[ci])+"</hp:t>"+row.slice(re_);
-      }
-      extraRows+=row;
-    }
-    // </hp:tbl> 직전에 삽입
-    reps.push([49416,49416,extraRows]);
-  }
 
   // 4. 원본 현안이슈
   reps.push([POS.origS_pE, POS.origE_pS, makeIssues(data.orig_issues,TPL.t14,TPL.t89)]);
@@ -235,7 +250,7 @@ async function buildHWPX(data){
   reps.sort((a,b)=>b[0]-a[0]);
   for(const [f,t,c] of reps) xml=xml.slice(0,f)+c+xml.slice(t);
 
-    return await patchZip(origBuf, "Contents/section0.xml", xml);
+    return patchZip(origBuf, "Contents/section0.xml", xml);
 }
 
 exports.generateHWPX = functions
@@ -495,4 +510,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780988535
+// deploy-1780984181

@@ -203,10 +203,7 @@ function buildHWPX(data){
   for(let i=0;i<6;i++){
     const s = sc[i]||{date:"",detail:"",note:""};
     const vals = [s.date||"", s.detail||"", s.note||""];
-    // detail 텍스트 길이에 따라 lineseg 동적 교체
-    if(SCHED_LSA[i] && vals[1]){
-      SCHED_LSA[i].forEach(([ls,le])=>{ reps.push([ls,le,makeLineSeg(vals[1])]); });
-    }
+
     (CELL_INFO[i]||[]).forEach((cell, ci)=>{
       const val = ci<vals.length ? vals[ci] : "";
       if(cell.type==="t"){
@@ -517,4 +514,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780971525
+// deploy-1780977636

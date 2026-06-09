@@ -436,7 +436,7 @@ document.addEventListener('fb-ready',()=>{
   loadMembers();
   loadLive();
   renderWeekDays();
-  loadDailyShared(); // Firebase 준비 후 즉시 로드
+  setTimeout(loadDailyShared, 200); // Firebase 준비 후 로드
   if(live&&window.fbWatch){
     window.fbWatch(`reports/daily/${TKEY}`,data=>{renderLive(Object.values(data||{}));});
   }
@@ -1244,7 +1244,7 @@ function loadSaved(saved){
   if(saved.date) document.getElementById('rptDate').value = saved.date;
 
   // ── 본부 주요행사 ──
-  setTimeout(()=>{
+  
     const evtBox = document.getElementById('evtB');
     if(!evtBox) return;
     [...evtBox.querySelectorAll('tr')].forEach(r=>{ r.querySelectorAll('input').forEach(inp=>inp.value=''); });
@@ -1257,7 +1257,7 @@ function loadSaved(saved){
       if(c[1]) c[1].value = ev.content||'';
       if(c[2]) c[2].value = ev.note||'';
     });
-  }, 100);
+  
 
   // ── 요약 현안이슈 ──
   const sumBox = document.getElementById('sumI');
@@ -1301,7 +1301,7 @@ function loadSaved(saved){
         });
         // 세부 내용 복원
         // 항목+세부 쌍 복원
-        setTimeout(()=>{
+        
           const ilDiv2 = last.querySelector('[id^="il"]');
           if(!ilDiv2) return;
           // 기존 자동 추가된 첫 행 제거 후 데이터로 채우기
@@ -1317,7 +1317,7 @@ function loadSaved(saved){
             if(detInp && iss.details && iss.details[i2]) detInp.value=iss.details[i2];
           });
           if(iss.items?.length===0) addItemRow(ilDiv2.id, true);
-        }, 50);
+        
       });
     } else { addIssue('origI','orig'); }
   }
@@ -1334,7 +1334,7 @@ function loadSaved(saved){
   }
 
   // ── 주요일정 ──
-  setTimeout(()=>{
+  
     const schedBox = document.getElementById('schedB');
     if(!schedBox) return;
     // 기존 행 완전 삭제 후 재생성
@@ -1350,7 +1350,7 @@ function loadSaved(saved){
       if(c[1])c[1].value=s.detail||'';
       if(c[2])c[2].value=s.note||'';
     });
-  }, 100);
+  
 
   // ── 제안발표 요약 ──
   const propSumEl = document.getElementById('propSum');
@@ -1358,7 +1358,7 @@ function loadSaved(saved){
     propSumEl.value = saved.proposal_summary||'';
 
   // ── 제안목록 ──
-  setTimeout(()=>{
+  
     const propBox = document.getElementById('propB');
     if(!propBox) return;
     // 기존 행 초기화
@@ -1372,7 +1372,7 @@ function loadSaved(saved){
       if(c[1]) c[1].value = p.person||'';
       if(c[2]) c[2].value = p.date||'';
     });
-  }, 100);
+  
 
   // ── 공공사업 상세 ──
   const bizBox = document.getElementById('bizB');

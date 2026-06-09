@@ -223,7 +223,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
     <div class="card-hd"><div class="card-hl"><span class="tag tay">2</span><span class="card-title">사업별 주요업무 요약</span></div></div>
     <div class="card-body">
       <div style="margin-bottom:14px;">
-        <div style="color:var(--ac);font-size:11px;font-weight:600;margin-bottom:7px;">○ 제안서 및 제안발표</div>
+        <div style="color:var(--ac);font-size:11px;font-weight:600;margin-bottom:7px;">○ 제안 및 보고서</div>
         <div class="brow" style="margin-left:12px;"><div class="bsym bgr">-</div><div class="binp"><input type="text" id="propSum" placeholder="6월 진행 예정 : 1건"></div></div>
       </div>
       <div style="margin-bottom:14px;">
@@ -1568,14 +1568,14 @@ function updatePreview(){
 
   // ── 제안발표 ──
   if(d.proposal_summary){
-    h+=`<div style="font-weight:600;color:var(--ac);margin:6px 0 3px;font-size:11px;">제안 발표</div>`;
+    h+=`<div style="font-weight:600;color:var(--ac);margin:6px 0 3px;font-size:11px;">사업명</div>`;
     h+=`<div style="color:var(--t2);font-size:10px;padding-left:6px;">${d.proposal_summary}</div>`;
   }
 
   // ── 제안목록 ──
   const props=(Array.isArray(d.proposals)?d.proposals:(d.proposals?.list||[])).filter(p=>p.title);
   if(props.length>0){
-    h+=`<div style="font-weight:600;color:var(--ac);margin:6px 0 3px;font-size:11px;">제안 목록</div>`;
+    h+=`<div style="font-weight:600;color:var(--ac);margin:6px 0 3px;font-size:11px;">사업명</div>`;
     h+=`<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:4px;">`;
     props.forEach(p=>{ h+=`<tr><td style="padding:2px 5px;border:1px solid var(--bd);">${p.title||''}</td><td style="padding:2px 5px;border:1px solid var(--bd);">${p.person||''}</td><td style="padding:2px 5px;border:1px solid var(--bd);">${p.date||''}</td></tr>`; });
     h+=`</table>`;

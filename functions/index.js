@@ -6,7 +6,7 @@ const ORIG_B64 = "UEsDBBQAAAAAAKoNyVyC8EFHEwAAABMAAAAIAAAAbWltZXR5cGVhcHBsaWNhdG
 
 // 주요일정 각 셀 첫번째 hp:t 위치
 const DATE_T = [4331, 4361]; // 날짜 hp:t 위치
-const CELL_INFO = [[{"type": "t", "pos": [[20005, 20026]]}, {"type": "t", "pos": []}, {"type": "t", "pos": []}], [{"type": "t", "pos": [[22350, 22371]]}, {"type": "t", "pos": [[23153, 23170], [23475, 23508]]}, {"type": "t", "pos": [[24296, 24312]]}], [{"type": "t", "pos": [[25103, 25124]]}, {"type": "t", "pos": [[25907, 25944]]}, {"type": "t", "pos": [[26729, 26750]]}], [{"type": "t", "pos": [[27541, 27562]]}, {"type": "t", "pos": [[28345, 28392]]}, {"type": "t", "pos": [[29176, 29192]]}], [{"type": "t", "pos": [[29983, 30004]]}, {"type": "t", "pos": [[30787, 30817]]}, {"type": "t", "pos": [[31602, 31618]]}], [{"type": "t", "pos": [[32409, 32426]]}, {"type": "t", "pos": []}, {"type": "t", "pos": []}]];
+const CELL_INFO = [[{"type": "t", "pos": []}, {"type": "t", "pos": []}, {"type": "t", "pos": []}], [{"type": "t", "pos": []}, {"type": "t", "pos": []}, {"type": "t", "pos": []}], [{"type": "t", "pos": []}, {"type": "t", "pos": []}, {"type": "t", "pos": []}], [{"type": "t", "pos": []}, {"type": "t", "pos": []}, {"type": "t", "pos": []}], [{"type": "t", "pos": []}, {"type": "t", "pos": []}, {"type": "t", "pos": []}], [{"type": "t", "pos": []}, {"type": "t", "pos": []}, {"type": "t", "pos": []}]];
 
 // 각 섹션 범위
 const POS = {
@@ -190,7 +190,7 @@ function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
 
-  // CELL_INFO 동적 계산 - tc 세그먼트 방식
+  // CELL_INFO 동적 계산 - </hp:tc> 기반 정확한 범위
   (function recalcCellInfo(){
     const hdrPos=xml.indexOf('<hp:t>일 자</hp:t>');
     if(hdrPos<0) return;
@@ -200,17 +200,24 @@ function buildHWPX(data){
     while((tp=xml.indexOf('<hp:tr>',tp))>=0&&tp<tblEnd){trList.push(tp);tp++;}
     for(let ri=1;ri<=Math.min(trList.length-1,6);ri++){
       const trS=trList[ri],trE=ri<trList.length-1?trList[ri+1]:tblEnd;
-      const trStr=xml.slice(trS,trE);
-      const tcListRel=[];let cp=0;
-      while((cp=trStr.indexOf('<hp:tc ',cp))>=0){tcListRel.push(cp);cp++;}
+      // tc를 </hp:tc>로 정확히 끊어서 찾기
+      const tcList=[];let cp=trS;
+      while(cp<trE){
+        const tcS=xml.indexOf('<hp:tc ',cp);
+        if(tcS<0||tcS>=trE) break;
+        const tcE=xml.indexOf('</hp:tc>',tcS)+8;
+        tcList.push([tcS,tcE]);
+        cp=tcE;
+      }
       const rowCells=[];
-      for(let ci=0;ci<Math.min(tcListRel.length,3);ci++){
-        const tcSRel=tcListRel[ci];
-        const nextTcRel=ci+1<tcListRel.length?tcListRel[ci+1]:trStr.length;
-        const tcSeg=trStr.slice(tcSRel,nextTcRel);
-        const tcSAbs=trS+tcSRel;
+      for(let ci=0;ci<Math.min(tcList.length,3);ci++){
+        const [tcS,tcE]=tcList[ci];
+        const tcXml=xml.slice(tcS,tcE);
         const tList=[];const re2=/<hp:t>[^<]*<\/hp:t>/g;let m2;
-        while((m2=re2.exec(tcSeg))!==null) tList.push([tcSAbs+m2.index,tcSAbs+m2.index+m2[0].length]);
+        while((m2=re2.exec(tcXml))!==null){
+          if(tcXml.slice(m2.index,m2.index+5)==='<hp:t>')
+            tList.push([tcS+m2.index,tcS+m2.index+m2[0].length]);
+        }
         rowCells.push({type:'t',pos:tList});
       }
       CELL_INFO[ri-1]=rowCells;
@@ -546,4 +553,3 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780970720

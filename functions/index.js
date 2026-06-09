@@ -190,46 +190,6 @@ function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
   let xml = readZip(origBuf,"Contents/section0.xml").toString("utf-8");
 
-  // CELL_INFO 동적 계산 - hp:t와 빈 run 모두 처리
-  (function recalcCellInfo(){
-    const hdrPos=xml.indexOf('<hp:t>일 자</hp:t>');
-    if(hdrPos<0) return;
-    const tblStart=xml.lastIndexOf('<hp:tbl ',hdrPos);
-    const tblEnd=tblStart+xml.slice(tblStart).indexOf('</hp:tbl>')+9;
-    const trList=[];let tp=tblStart;
-    while((tp=xml.indexOf('<hp:tr>',tp))>=0&&tp<tblEnd){trList.push(tp);tp++;}
-    for(let ri=1;ri<=Math.min(trList.length-1,6);ri++){
-      const trS=trList[ri],trE=ri<trList.length-1?trList[ri+1]:tblEnd;
-      const tcList=[];let cp=trS;
-      while(cp<trE){
-        const tcS=xml.indexOf('<hp:tc ',cp,trE);
-        if(tcS<0||tcS>=trE)break;
-        const tcE=xml.indexOf('</hp:tc>',tcS)+8;
-        tcList.push([tcS,tcE]);
-        cp=tcE;
-      }
-      const rowCells=[];
-      for(let ci=0;ci<Math.min(tcList.length,3);ci++){
-        const [tcS,tcE]=tcList[ci];
-        const tcXml=xml.slice(tcS,tcE);
-        // hp:t 찾기
-        const tList=[];const re2=/<hp:t>[^<]*<\/hp:t>/g;let m2;
-        while((m2=re2.exec(tcXml))!==null) tList.push([tcS+m2.index,tcS+m2.index+m2[0].length]);
-        if(tList.length>0){
-          rowCells.push({type:'t',pos:tList});
-        } else {
-          // 빈 run 찾기
-          const runM=/<hp:run charPrIDRef="(\d+)"\/>/  .exec(tcXml);
-          if(runM) rowCells.push({type:'sc',s:tcS+runM.index,e:tcS+runM.index+runM[0].length,r:runM[0]});
-          else rowCells.push({type:'t',pos:[]});
-        }
-      }
-      CELL_INFO[ri-1]=rowCells;
-    }
-    const dtM=/<hp:t>\(20\d{2}\./.exec(xml);
-    if(dtM){DATE_T[0]=dtM.index;DATE_T[1]=xml.indexOf('<\/hp:t>',dtM.index)+7;}
-  })();
-
   // 모든 교체를 뒤→앞 순서로 한번에
   const reps = [];
 
@@ -557,4 +517,4 @@ exports.debugWeekly = functions.region("asia-northeast1").https.onRequest((req,r
 });
 // lineseg-fix2
 // workflow-clean
-// deploy-1780971341
+// deploy-1780971525

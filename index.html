@@ -436,7 +436,7 @@ document.addEventListener('fb-ready',()=>{
   loadMembers();
   loadLive();
   renderWeekDays();
-  setTimeout(loadDailyShared, 500); // Firebase 준비 후 로드
+  setTimeout(loadDailyShared, 1500); // Firebase 준비 후 로드
   if(live&&window.fbWatch){
     window.fbWatch(`reports/daily/${TKEY}`,data=>{renderLive(Object.values(data||{}));});
   }

@@ -285,9 +285,10 @@ function buildHWPX(data){
   for(let i=0;i<6;i++){
     const s = sc[i]||{date:"",detail:"",note:""};
     const vals = [s.date||"", s.detail||"", s.note||""];
-    // detail 텍스트 길이에 따라 lineseg 동적 교체
-    if(SCHED_LSA[i] && vals[1]){
-      SCHED_LSA[i].forEach(([ls,le])=>{ reps.push([ls,le,makeLineSeg(vals[1])]); });
+    // detail 셀 linesegarray 제거 → 한글이 열 때 줄배치를 직접 재계산
+    // (서버의 줄바꿈 추정은 행별 글꼴 차이로 실제와 어긋나 겹침을 유발하므로 캐시 자체를 제거)
+    if(SCHED_LSA[i]){
+      SCHED_LSA[i].forEach(([ls,le])=>{ reps.push([ls,le,""]); });
     }
     (CELL_INFO[i]||[]).forEach((cell, ci)=>{
       const val = ci<vals.length ? vals[ci] : "";

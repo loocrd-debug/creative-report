@@ -136,6 +136,11 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px;}
+/* 드래그 순서 변경 */
+.drag-h{cursor:grab;color:var(--t3);font-size:14px;padding:2px 5px;user-select:none;flex-shrink:0;line-height:1;}
+.drag-h:hover{color:var(--ac);}
+.drag-h:active{cursor:grabbing;}
+.item.dragging{opacity:.45;outline:1.5px dashed var(--ac);outline-offset:2px;}
 /* 금일 새로 작성된 텍스트 강조 */
 input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px rgba(255,216,77,.30); }
 </style>
@@ -157,7 +162,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0611-3</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0611-4</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -464,6 +469,42 @@ function getRecentWeekdayKey(fromDate) {
   while(d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
   return localKey(d);
 }
+
+// ── 사업 블록 드래그 순서 변경 ──
+// 핸들(⠿)을 잡으면 해당 .item을 같은 목록 안에서 위아래로 이동
+document.addEventListener('mousedown', e=>{
+  const h = e.target.closest && e.target.closest('.drag-h');
+  if(!h) return;
+  const item = h.closest('.item');
+  if(item) item.setAttribute('draggable','true');
+});
+document.addEventListener('dragstart', e=>{
+  const item = e.target.closest && e.target.closest('.item[draggable="true"]');
+  if(!item) return;
+  item.classList.add('dragging');
+  if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',''); } // Firefox 필수
+});
+document.addEventListener('dragover', e=>{
+  const dragging = document.querySelector('.item.dragging');
+  if(!dragging) return;
+  const box = dragging.parentElement;
+  if(e.target !== box && !box.contains(e.target)) return; // 같은 목록 안에서만 이동
+  e.preventDefault();
+  const after = [...box.querySelectorAll('.item:not(.dragging)')].reduce((c,el)=>{
+    const r = el.getBoundingClientRect();
+    const off = e.clientY - r.top - r.height/2;
+    return (off < 0 && off > c.off) ? {off, el} : c;
+  }, {off:-Infinity}).el;
+  if(after) box.insertBefore(dragging, after); else box.appendChild(dragging);
+});
+document.addEventListener('dragend', ()=>{
+  const item = document.querySelector('.item.dragging');
+  if(item){
+    item.classList.remove('dragging');
+    item.removeAttribute('draggable');
+    if(typeof updateWeeklyPreview === 'function') updateWeeklyPreview(); // 주간 미리보기 갱신
+  }
+});
 
 // ── 금일 신규 텍스트 하이라이트 ──
 // 직전 평일 보고서에 없던 텍스트 = 오늘 새로 작성된 글 → 노란색 표시 (모든 작성자 공통 기준)
@@ -1244,6 +1285,7 @@ function addIssue(cid,pref,noAutoRow){
   const div=document.createElement('div'); div.className='item';
   div.innerHTML=`
     <div class="itop">
+      <div class="drag-h" title="끌어서 순서 이동">⠿</div>
       <div class="iname"><div class="lbl">사업명</div><input type="text" placeholder="예: 정부24 운영사업" class="pnm"></div>
       ${isO?'':
       `<div style="width:110px;"><div class="lbl">상태</div>
@@ -1299,6 +1341,7 @@ function addBiz(cid){
   const div=document.createElement('div'); div.className='item';
   div.innerHTML=`
     <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+      <div class="drag-h" title="끌어서 순서 이동">⠿</div>
       <div class="bsym bgr">-</div>
       <input type="text" style="flex:1;" placeholder="사업명 (예: [클라우드 네이티브 전환])">
       <button class="btn bd" style="padding:2px 5px;flex-shrink:0" onclick="this.closest('.item').remove()">✕</button>

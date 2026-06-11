@@ -4,6 +4,7 @@ on:
     branches: [ main ]
     paths:
       - 'functions/**'
+  workflow_dispatch:
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -14,6 +15,10 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: cd functions && npm install
+      - name: Delete generateHWPX (cache bust)
+        run: npx firebase-tools functions:delete generateHWPX --region asia-northeast1 --project creative-report-e38d7 --force --token $FIREBASE_TOKEN || true
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
       - name: Deploy to Firebase
         run: npx firebase-tools deploy --only functions --project creative-report-e38d7 --force --token $FIREBASE_TOKEN
         env:

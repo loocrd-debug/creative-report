@@ -421,6 +421,34 @@ const POS_W = {
 };
 const TPL_W = {issue:"<hp:p id=\"2147483648\" paraPrIDRef=\"70\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"43\"><hp:t>   -</hp:t></hp:run><hp:run charPrIDRef=\"44\"><hp:t> [\ud22c\uc785] </hp:t></hp:run><hp:run charPrIDRef=\"43\"><hp:t>\ud074\ub77c\uc6b0\ub4dc \ub124\uc774\ud2f0\ube0c \uc804\ud658(1\ucc28), \uc815\ubd8024 \uc6b4\uc601, \ubc94\uc815\ubd80 \uc11c\ube44\uc2a4 \ud1b5\ud569\ucc3d\uad6c(3\ucc28), </hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"28664\" vertsize=\"1400\" textheight=\"1400\" baseline=\"1190\" spacing=\"420\" horzpos=\"0\" horzsize=\"51024\" flags=\"393216\"/></hp:linesegarray></hp:p>",bizName:"<hp:p id=\"0\" paraPrIDRef=\"55\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"36\"><hp:t>   - </hp:t></hp:run><hp:run charPrIDRef=\"35\"><hp:t>[\ud074\ub77c\uc6b0\ub4dc \ub124\uc774\ud2f0\ube0c \uc804\ud658] </hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"43849\" vertsize=\"1400\" textheight=\"1400\" baseline=\"1190\" spacing=\"560\" horzpos=\"0\" horzsize=\"51024\" flags=\"393216\"/></hp:linesegarray></hp:p>",bizDetail:"<hp:p id=\"2147483648\" paraPrIDRef=\"56\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"45\"><hp:t>     \u00b7 \uc548\ub0b4\ubbfc\uc6d0 \uac80\uc99d \ubc0f \uc218\uc815 \uc791\uc5c5</hp:t></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"46309\" vertsize=\"1400\" textheight=\"1400\" baseline=\"1190\" spacing=\"840\" horzpos=\"0\" horzsize=\"51024\" flags=\"393216\"/></hp:linesegarray></hp:p>"};
 
+// 페이지1 제안표 동적 행 생성 (주간) - 일일보고와 동일 방식
+const W_PROP_TR = [17933, 20362];      // 데이터행 <hp:tr> 범위
+const W_PROP_ROWCNT = [15049, 15059];  // rowCnt="2" 위치
+const W_PROP_TBL_H = [15164, 15177];   // height="3991" 위치
+const W_PROP_HEADER_H = 1848;          // 3991 - 2143
+const W_PROP_ROW_BASE_H = 2143;
+const W_PROP_LINE_STRIDE = 1600;       // vertsize 1000 + spacing 600
+
+function buildWeeklyPropRows(xml, proposals){
+  const tpl = xml.slice(W_PROP_TR[0], W_PROP_TR[1])
+    .replace(/<hp:linesegarray>.*?<\/hp:linesegarray>/g, ""); // 한글이 줄배치 재계산
+  const list = (proposals && proposals.length) ? proposals : [{}];
+  let rows = "", totalH = 0;
+  list.forEach((p, i)=>{
+    const vals = [p.title||"", p.person||"", p.date||""];
+    let len=0; for(const c of vals[0]) len+=(c.charCodeAt(0)>127)?2:1;
+    const lines = Math.max(1, Math.ceil(len/39));
+    const rowH = W_PROP_ROW_BASE_H + (lines-1)*W_PROP_LINE_STRIDE;
+    let ti = 0;
+    rows += tpl
+      .replace(/rowAddr="1"/g, 'rowAddr="'+(i+1)+'"')
+      .replace(/height="2143"/g, 'height="'+rowH+'"')
+      .replace(/<hp:t>[^<]*<\/hp:t>/g, ()=> "<hp:t>"+ex(vals[ti++])+"</hp:t>");
+    totalH += rowH;
+  });
+  return { rows, rowCnt: list.length+1, tblH: W_PROP_HEADER_H + totalH };
+}
+
 // 페이지1 제안표 단일 데이터행 템플릿 (원본에서 추출)
 let P1_ROW_TPL="";
 
@@ -494,30 +522,12 @@ function buildWeeklyHWPX(data){
     : "     · 해당 없음";
   reps.push([POS_W.prop_sum[0],POS_W.prop_sum[1],"<hp:t>"+propSumRaw+"</hp:t>"]);
 
-  // 페이지1 제안표 - 첫 행 교체 + 추가 행 삽입
+  // 페이지1 제안표 - 데이터행 동적 생성 (행 수만큼 복제 + rowCnt/표높이 갱신)
   const allProps=data.proposals||[];
-  const prop0=allProps[0]||{};
-  POS_W.p1_r1.forEach(([ps,pe],ci)=>{
-    const vals=[prop0.title||"",prop0.person||"",prop0.date||""];
-    reps.push([ps,pe,"<hp:t>"+ex(vals[ci])+"</hp:t>"]);
-  });
-  // 2번째 이후 제안: setLastT로 각 셀 교체
-  if(allProps.length>1){
-    const extraRows=allProps.slice(1).map(p=>{
-      let row=P1_ROW_TPL;
-      const vals=[p.title||"",p.person||"",p.date||""];
-      // 각 셀(subList)별로 순서대로 교체
-      let ci=0;
-      row=row.replace(/<hp:subList[^>]*>[\s\S]*?<\/hp:subList>/g,(cell)=>{
-        if(ci>=3) return cell;
-        const replaced=cell.replace(/<hp:t>[^<]*<\/hp:t>/,"<hp:t>"+ex(vals[ci])+"</hp:t>");
-        ci++;
-        return replaced;
-      });
-      return row;
-    }).join("");
-    reps.push([20362,20362,extraRows]);
-  }
+  const wpr=buildWeeklyPropRows(xml, allProps);
+  reps.push([W_PROP_TR[0], W_PROP_TR[1], wpr.rows]);
+  reps.push([W_PROP_ROWCNT[0], W_PROP_ROWCNT[1], 'rowCnt="'+wpr.rowCnt+'"']);
+  reps.push([W_PROP_TBL_H[0], W_PROP_TBL_H[1], 'height="'+wpr.tblH+'"']);
   reps.push([POS_W.collab[0],POS_W.collab[1],"<hp:t>"+ex(data.collab||"- 특이사항 없음")+"</hp:t>"]);
   [POS_W.p2_r1,POS_W.p2_r2].forEach((rowCells,ri)=>{
     const p=(data.proposals2||[])[ri]||{};

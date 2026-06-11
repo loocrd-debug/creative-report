@@ -662,6 +662,53 @@ function loadWeeklySavedData(data){
     });
   }, 50);
 
+  // 3-1. 원본 제안목록 (oPropB) - origProposals.list 배열
+  setTimeout(()=>{
+    const oBox=document.getElementById('oPropB');
+    if(!oBox) return;
+    const props=(data.origProposals?.list||[]).filter(p=>p.title);
+    [...oBox.querySelectorAll('tr')].forEach(r=>r.querySelectorAll('input').forEach(inp=>inp.value=''));
+    props.forEach((p,i)=>{
+      let row=oBox.querySelectorAll('tr')[i];
+      if(!row){ addTR('oPropB'); row=oBox.querySelectorAll('tr')[i]; }
+      if(!row) return;
+      const c=row.querySelectorAll('input');
+      if(c[0]) c[0].value=p.title||'';
+      if(c[1]) c[1].value=p.person||'';
+      if(c[2]) c[2].value=p.date||'';
+    });
+  }, 50);
+
+  // 3-2. 인력동향 (sumManR / origManR)
+  setTimeout(()=>{
+    [['sumManR', data.manpower||[]], ['origManR', data.origManpower||[]]].forEach(([cid, list])=>{
+      const box=document.getElementById(cid);
+      if(!box || !list.length) return;
+      [...box.querySelectorAll('.brow input')].forEach(inp=>inp.value='');
+      list.forEach((val,i)=>{
+        let rows=[...box.querySelectorAll('.brow')];
+        if(!rows[i]){ addBR(cid,'-'); rows=[...box.querySelectorAll('.brow')]; }
+        const inp=rows[i]?.querySelector('input');
+        if(inp) inp.value=val||'';
+      });
+    });
+  }, 50);
+
+  // 3-3. 별첨 (appendixB)
+  setTimeout(()=>{
+    const box=document.getElementById('appendixB');
+    if(!box) return;
+    const list=data.appendix||[];
+    if(!list.length) return;
+    list.forEach((ap,i)=>{
+      let rows=[...box.querySelectorAll('.appendix-row')];
+      if(!rows[i] && typeof addAppendix==='function'){ addAppendix(); rows=[...box.querySelectorAll('.appendix-row')]; }
+      const row=rows[i]; if(!row) return;
+      const t=row.querySelector('.appendix-title'); if(t) t.value=ap.title||'';
+      const ct=row.querySelector('.appendix-content'); if(ct) ct.value=ap.content||'';
+    });
+  }, 50);
+
   // 4. 주요일정 (wkSchedB)
   setTimeout(()=>{
     const schedBox=document.getElementById('wkSchedB');

@@ -176,8 +176,49 @@ function makeLineSeg(text){
   for(let i=0;i<lines;i++) segs+=`<hp:lineseg textpos="0" vertpos="${i*STRIDE}" vertsize="${VERT}" textheight="${VERT}" baseline="935" spacing="${SPACING}" horzpos="0" horzsize="31492" flags="393216"/>`;
   return `<hp:linesegarray>${segs}</hp:linesegarray>`;
 }
-// schedule detail linesegarray 위치 (원본 XML 기준)
-SCHED_LSA = [[], [[20800, 20979]], [[23179, 23358]], [[25953, 26132]], [[28401, 28580]], [[30826, 31005]], [[33201, 33380]]];
+// schedule detail linesegarray 위치 (원본 XML 기준, 행0~행5 순서)
+SCHED_LSA = [[[20800, 20979]], [[23179, 23358]], [[25953, 26132]], [[28401, 28580]], [[30826, 31005]], [[33201, 33380]]];
+
+// ── 제안표 동적 행 생성 ──
+const PROP_TR = [46993, 49416];      // 데이터행 <hp:tr> 범위 (원본 XML 기준)
+const PROP_ROWCNT = [44116, 44126];  // rowCnt="2" 위치
+const PROP_TBL_H = [44230, 44243];   // 표 height="3821" 위치
+const PROP_HEADER_H = 1848;          // 헤더행 높이 (3821 - 1973)
+const PROP_ROW_BASE_H = 1973;        // 데이터행 1줄 기준 높이
+const PROP_LINE_STRIDE = 1600;       // 줄당 추가 높이 (vertsize 1000 + spacing 600)
+
+// 제안명 셀 줄 수 계산 (horzsize 23656 기준)
+function propTitleLines(text){
+  let len=0;
+  for(const c of (text||'')) len+=(c.charCodeAt(0)>127)?2:1;
+  return Math.max(1, Math.ceil(len/39));
+}
+
+// 제안 N건 → 데이터행 N개 XML 생성
+function buildPropRows(xml, proposals){
+  const tpl = xml.slice(PROP_TR[0], PROP_TR[1]);
+  const list = (proposals && proposals.length) ? proposals : [{}];
+  let rows = "", totalH = 0;
+  list.forEach((p, i)=>{
+    const vals = [p.title||"", p.person||"", p.date||""];
+    const lines = propTitleLines(vals[0]);
+    const rowH = PROP_ROW_BASE_H + (lines-1)*PROP_LINE_STRIDE;
+    let ti = 0;
+    let row = tpl
+      .replace(/rowAddr="1"/g, 'rowAddr="'+(i+1)+'"')
+      .replace(/height="1973"/g, 'height="'+rowH+'"')
+      .replace(/<hp:t>[^<]*<\/hp:t>/g, ()=> "<hp:t>"+ex(vals[ti++])+"</hp:t>");
+    // 제안명 셀(첫 번째) linesegarray를 줄 수에 맞게 재생성
+    let segs = "";
+    for(let L=0; L<lines; L++){
+      segs += '<hp:lineseg textpos="0" vertpos="'+(L*PROP_LINE_STRIDE)+'" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="23656" flags="393216"/>';
+    }
+    row = row.replace(/<hp:linesegarray>.*?<\/hp:linesegarray>/, "<hp:linesegarray>"+segs+"</hp:linesegarray>");
+    rows += row;
+    totalH += rowH;
+  });
+  return { rows, rowCnt: list.length+1, tblH: PROP_HEADER_H + totalH };
+}
 
 function buildHWPX(data){
   const origBuf = Buffer.from(ORIG_B64,"base64");
@@ -229,12 +270,11 @@ function buildHWPX(data){
   // 3. 제안요약
   reps.push([POS.prop_pS, POS.prop_pE, setLastT(TPL.t75,"    - "+(data.proposal_summary||"해당 없음"))]);
 
-  // 3-1. 제안표 데이터행 (첫 번째 제안만 - 원본에 1행)
-  const prop0 = (data.proposals||[])[0]||{};
-  POS.prop_row.forEach(([ps,pe],ci)=>{
-    const vals=[prop0.title||"",prop0.person||"",prop0.date||""];
-    reps.push([ps,pe,"<hp:t>"+ex(vals[ci])+"</hp:t>"]);
-  });
+  // 3-1. 제안표 데이터행 동적 생성 (제안 수만큼 행 복제 + rowCnt/표높이 갱신)
+  const pr = buildPropRows(xml, data.proposals);
+  reps.push([PROP_TR[0], PROP_TR[1], pr.rows]);
+  reps.push([PROP_ROWCNT[0], PROP_ROWCNT[1], 'rowCnt="'+pr.rowCnt+'"']);
+  reps.push([PROP_TBL_H[0], PROP_TBL_H[1], 'height="'+pr.tblH+'"']);
 
   // 4. 원본 현안이슈
   reps.push([POS.origS_pE, POS.origE_pS, makeIssues(data.orig_issues,TPL.t14,TPL.t89)]);

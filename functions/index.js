@@ -232,17 +232,24 @@ const PROP_TBL_H = [44230, 44243];   // 표 height="3821" 위치
 const PROP_HEADER_H = 1848;          // 헤더행 높이 (3821 - 1973)
 const PROP_ROW_BASE_H = 1973;        // 데이터행 1줄 기준 높이
 const PROP_LINE_STRIDE = 1600;       // 줄당 추가 높이 (vertsize 1000 + spacing 600)
+const PROP_W_DELTA = 5000;           // 담당자→제안으로 이동할 폭
+const PROP_HDR_TITLE_SZ = [45283, 45323]; // 헤더행 제안 cellSz 위치
+const PROP_HDR_PERSON_SZ = [46081, 46121]; // 헤더행 담당자 cellSz 위치
 
-// 제안명 셀 줄 수 계산 (horzsize 23656 기준)
+// 제안명 셀 줄 수 계산 (확대된 폭 기준, 행높이 최소값 산정용)
 function propTitleLines(text){
   let len=0;
   for(const c of (text||'')) len+=(c.charCodeAt(0)>127)?2:1;
-  return Math.max(1, Math.ceil(len/39));
+  const chars = Math.floor(39 * (23936+PROP_W_DELTA) / 23936); // 폭 비례 (47)
+  return Math.max(1, Math.ceil(len/chars));
 }
 
 // 제안 N건 → 데이터행 N개 XML 생성
 function buildPropRows(xml, proposals){
-  const tpl = xml.slice(PROP_TR[0], PROP_TR[1]);
+  const tpl = xml.slice(PROP_TR[0], PROP_TR[1])
+    .replace('width="23936"', 'width="'+(23936+PROP_W_DELTA)+'"')   // 제안 폭 확대
+    .replace('width="15851"', 'width="'+(15851-PROP_W_DELTA)+'"')   // 담당자 폭 축소
+    .replace(/<hp:linesegarray>.*?<\/hp:linesegarray>/g, "");        // lineseg 제거 → 한글이 줄배치 재계산
   const list = (proposals && proposals.length) ? proposals : [{}];
   let rows = "", totalH = 0;
   list.forEach((p, i)=>{
@@ -250,16 +257,10 @@ function buildPropRows(xml, proposals){
     const lines = propTitleLines(vals[0]);
     const rowH = PROP_ROW_BASE_H + (lines-1)*PROP_LINE_STRIDE;
     let ti = 0;
-    let row = tpl
+    const row = tpl
       .replace(/rowAddr="1"/g, 'rowAddr="'+(i+1)+'"')
       .replace(/height="1973"/g, 'height="'+rowH+'"')
       .replace(/<hp:t>[^<]*<\/hp:t>/g, ()=> "<hp:t>"+ex(vals[ti++])+"</hp:t>");
-    // 제안명 셀(첫 번째) linesegarray를 줄 수에 맞게 재생성
-    let segs = "";
-    for(let L=0; L<lines; L++){
-      segs += '<hp:lineseg textpos="0" vertpos="'+(L*PROP_LINE_STRIDE)+'" vertsize="1000" textheight="1000" baseline="850" spacing="600" horzpos="0" horzsize="23656" flags="393216"/>';
-    }
-    row = row.replace(/<hp:linesegarray>.*?<\/hp:linesegarray>/, "<hp:linesegarray>"+segs+"</hp:linesegarray>");
     rows += row;
     totalH += rowH;
   });
@@ -324,6 +325,9 @@ function buildHWPX(data){
   reps.push([PROP_TR[0], PROP_TR[1], pr.rows]);
   reps.push([PROP_ROWCNT[0], PROP_ROWCNT[1], 'rowCnt="'+pr.rowCnt+'"']);
   reps.push([PROP_TBL_H[0], PROP_TBL_H[1], 'height="'+pr.tblH+'"']);
+  // 헤더행 폭도 동일 비율로 조정 (제안↑ 담당자↓)
+  reps.push([PROP_HDR_TITLE_SZ[0], PROP_HDR_TITLE_SZ[1], '<hp:cellSz width="'+(23936+PROP_W_DELTA)+'" height="1848"/>']);
+  reps.push([PROP_HDR_PERSON_SZ[0], PROP_HDR_PERSON_SZ[1], '<hp:cellSz width="'+(15851-PROP_W_DELTA)+'" height="1848"/>']);
 
   // 4. 원본 현안이슈
   reps.push([POS.origS_pE, POS.origE_pS, makeIssues(data.orig_issues,TPL.t14,TPL.t89)]);

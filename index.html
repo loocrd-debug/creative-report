@@ -136,6 +136,8 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px;}
+/* 금일 새로 작성된 텍스트 강조 */
+input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px rgba(255,216,77,.30); }
 </style>
 </head>
 <body>
@@ -155,7 +157,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0611-2</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0611-3</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -463,17 +465,52 @@ function getRecentWeekdayKey(fromDate) {
   return localKey(d);
 }
 
+// ── 금일 신규 텍스트 하이라이트 ──
+// 직전 평일 보고서에 없던 텍스트 = 오늘 새로 작성된 글 → 노란색 표시 (모든 작성자 공통 기준)
+let PREV_TEXT_SET = null;
+function collectStrings(o, s){
+  if(o == null) return;
+  if(typeof o === 'string'){ const t = o.trim(); if(t) s.add(t); return; }
+  if(typeof o === 'object') Object.values(o).forEach(v=>collectStrings(v, s));
+}
+async function buildPrevTextSet(){
+  if(PREV_TEXT_SET || !window.fbGet) return;
+  try{
+    const prev = await window.fbGet(`reports/daily/${getRecentWeekdayKey()}/shared`);
+    const s = new Set(); collectStrings(prev, s);
+    PREV_TEXT_SET = s;
+  }catch(e){ PREV_TEXT_SET = new Set(); }
+}
+function markNewTexts(){
+  if(!PREV_TEXT_SET) return;
+  document.querySelectorAll('#pg-daily input[type=text], #pg-daily textarea').forEach(el=>{
+    if(el.id==='rptDate') return; // 보고일자는 제외
+    const v = (el.value||'').trim();
+    el.classList.toggle('new-txt', !!v && !PREV_TEXT_SET.has(v));
+  });
+}
+async function refreshNewMarks(){ await buildPrevTextSet(); markNewTexts(); }
+// 입력 중에도 즉시 반영
+document.addEventListener('input', e=>{
+  const el = e.target;
+  if(!PREV_TEXT_SET || !el.closest || !el.closest('#pg-daily')) return;
+  if(el.id!=='rptDate' && (el.matches('input[type=text]') || el.matches('textarea'))){
+    const v = (el.value||'').trim();
+    el.classList.toggle('new-txt', !!v && !PREV_TEXT_SET.has(v));
+  }
+});
+
 // 오늘 일일보고 자동 로드 - 화면에 직접 채우기
 async function loadDailyShared() {
   if(!window.fbGet) return;
   try {
     // 오늘 shared 읽기
     let data = await window.fbGet(`reports/daily/${TKEY}/shared`);
-    if(data){ loadSaved(data); return; }
+    if(data){ loadSaved(data); setTimeout(refreshNewMarks, 300); return; }
     // 오늘 shared 없으면 최근 평일 shared 읽기
     const prevKey = getRecentWeekdayKey();
     const prev = await window.fbGet(`reports/daily/${prevKey}/shared`);
-    if(prev){ loadSaved(prev); document.getElementById('rptDate').value=TSTR; } // 내용은 이어받되 보고일자는 오늘로
+    if(prev){ loadSaved(prev); document.getElementById('rptDate').value=TSTR; setTimeout(refreshNewMarks, 300); } // 내용은 이어받되 보고일자는 오늘로
   } catch(e) {
     console.log('loadDailyShared 오류:', e.message);
   }
@@ -1200,7 +1237,7 @@ function delBR(btn){const r=btn.closest('.brow');if(r.parentElement.querySelecto
 
 // ── 이슈 항목 ──
 let iC=0;
-function addIssue(cid,pref){
+function addIssue(cid,pref,noAutoRow){
   const idx=iC++;
   const box=document.getElementById(cid); if(!box)return;
   const isO=pref==='orig';
@@ -1217,7 +1254,7 @@ function addIssue(cid,pref){
     <div id="il${idx}"></div>
     <button class="btn bg" style="font-size:10px;margin-top:5px;" onclick="addItemRow('il${idx}',${isO})">+ 항목 추가</button>`;
   box.appendChild(div);
-  setTimeout(()=>addItemRow('il'+idx, isO), 0);
+  if(!noAutoRow) setTimeout(()=>addItemRow('il'+idx, isO), 0);
 }
 
 // ── 항목+세부 쌍 추가 ──
@@ -1315,17 +1352,21 @@ function loadSaved(saved){
     const sumList = saved.sum_issues||[];
     if(sumList.length > 0){
       sumList.forEach(iss=>{
-        addIssue('sumI');
+        addIssue('sumI', 'sum', true); // 자동 빈행 없이 생성
         const items = sumBox.querySelectorAll('.item');
         const last = items[items.length-1];
         if(!last) return;
         const pnm = last.querySelector('.pnm');
         if(pnm) pnm.value = iss.project||'';
-        const inputs = last.querySelectorAll('.binp input');
-        (iss.items||[]).forEach((it,i2)=>{
-          if(i2 === 0 && inputs[0]){ inputs[0].value = it; }
-          else { addBR(last.querySelector('[id^="il"]')?.id, '-'); const newInps = last.querySelectorAll('.binp input'); if(newInps[i2]) newInps[i2].value = it; }
+        const ilDiv = last.querySelector('[id^="il"]');
+        const list = (iss.items||[]).filter(Boolean);
+        list.forEach(it=>{
+          addItemRow(ilDiv.id, false);
+          const rows=[...ilDiv.querySelectorAll('.irow')];
+          const inp=rows[rows.length-1]?.querySelector('.iitem');
+          if(inp) inp.value=it;
         });
+        if(list.length===0) addItemRow(ilDiv.id, false); // 내용 없으면 입력행 1개만
       });
     } else { addIssue('sumI'); }
   }
@@ -1337,36 +1378,30 @@ function loadSaved(saved){
     const origList = saved.orig_issues||[];
     if(origList.length > 0){
       origList.forEach(iss=>{
-        addIssue('origI','orig');
+        addIssue('origI','orig', true); // 자동 빈행 없이 생성
         const items = origBox.querySelectorAll('.item');
         const last = items[items.length-1];
         if(!last) return;
         const pnm = last.querySelector('.pnm');
         if(pnm) pnm.value = iss.project||'';
-        const inputs = last.querySelectorAll('.binp input');
-        (iss.items||[]).forEach((it,i2)=>{
-          if(i2 === 0 && inputs[0]){ inputs[0].value = it; }
-          else { addBR(last.querySelector('[id^="il"]')?.id, '-'); const newInps = last.querySelectorAll('.binp input'); if(newInps[i2]) newInps[i2].value = it; }
+        const ilDiv2 = last.querySelector('[id^="il"]');
+        if(!ilDiv2) return;
+        const list=(iss.items||[]).filter(Boolean);
+        list.forEach((it,i2)=>{
+          addItemRow(ilDiv2.id, true);
+          const rows=[...ilDiv2.querySelectorAll('.irow')];
+          const row=rows[rows.length-1];
+          if(!row) return;
+          const itemInp=row.querySelector('.iitem');
+          if(itemInp) itemInp.value=it;
+          const detVal=(iss.details&&iss.details[i2])||'';
+          const detInp=row.querySelector('.idetail');
+          if(detInp){
+            if(detVal){ detInp.value=detVal; }
+            else { const dr=detInp.closest('[style*="padding-left"]'); if(dr) dr.remove(); } // 빈 세부행 제거
+          }
         });
-        // 세부 내용 복원
-        // 항목+세부 쌍 복원
-        
-          const ilDiv2 = last.querySelector('[id^="il"]');
-          if(!ilDiv2) return;
-          // 기존 자동 추가된 첫 행 제거 후 데이터로 채우기
-          ilDiv2.innerHTML='';
-          (iss.items||[]).forEach((it,i2)=>{
-            addItemRow(ilDiv2.id, true);
-            const rows=[...ilDiv2.querySelectorAll('.irow')];
-            const row=rows[rows.length-1];
-            if(!row) return;
-            const itemInp=row.querySelector('.iitem');
-            const detInp=row.querySelector('.idetail');
-            if(itemInp) itemInp.value=it;
-            if(detInp && iss.details && iss.details[i2]) detInp.value=iss.details[i2];
-          });
-          if(iss.items?.length===0) addItemRow(ilDiv2.id, true);
-        
+        if(list.length===0) addItemRow(ilDiv2.id, true); // 내용 없으면 입력행 1개만
       });
     } else { addIssue('origI','orig'); }
   }

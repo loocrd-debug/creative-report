@@ -167,14 +167,60 @@ function crc32(buf){
 
 
 // schedule detail 셀 lineseg 동적 생성
-function makeLineSeg(text){
+const SCHED_W_DELTA = 4000;                       // 비고→세부일정으로 이동할 폭
+const SCHED_DETAIL_HORZ = 31492 + SCHED_W_DELTA;  // 세부일정 lineseg horzsize (35492)
+const SCHED_CHARS = Math.floor(52 * SCHED_DETAIL_HORZ / 31492); // 줄당 글자수 (58)
+const SCHED_STRIDE = 1432;                        // 줄당 높이 (vertsize 1100 + spacing 332)
+const SCHED_ROW_MARGIN = 1163;                    // 행 상하 여백 (2595 - 1432)
+
+function schedLines(text){
   let len=0;
   for(const c of (text||'')) len+=(c.charCodeAt(0)>127)?2:1;
-  const CHARS=52, VERT=1100, SPACING=332, STRIDE=VERT+SPACING;
-  const lines=Math.max(1,Math.ceil(len/CHARS));
+  return Math.max(1,Math.ceil(len/SCHED_CHARS));
+}
+
+function makeLineSeg(text){
+  const VERT=1100, SPACING=332;
+  const lines=schedLines(text);
   let segs='';
-  for(let i=0;i<lines;i++) segs+=`<hp:lineseg textpos="0" vertpos="${i*STRIDE}" vertsize="${VERT}" textheight="${VERT}" baseline="935" spacing="${SPACING}" horzpos="0" horzsize="31492" flags="393216"/>`;
+  for(let i=0;i<lines;i++) segs+=`<hp:lineseg textpos="0" vertpos="${i*SCHED_STRIDE}" vertsize="${VERT}" textheight="${VERT}" baseline="935" spacing="${SPACING}" horzpos="0" horzsize="${SCHED_DETAIL_HORZ}" flags="393216"/>`;
   return `<hp:linesegarray>${segs}</hp:linesegarray>`;
+}
+
+// 주요일정 표 범위 (원본 XML 기준)
+const SCHED_TBL = [16582, 34367];
+
+// 주요일정 표: 열 폭 조정(비고↓ 세부일정↑) + 행 높이 동적 확장 + 표 높이 갱신
+function schedSizeReps(xml, schedule){
+  const reps=[];
+  const T0=SCHED_TBL[0];
+  const tbl=xml.slice(T0, SCHED_TBL[1]);
+  const sc=schedule||[];
+  // XML 행: 0=헤더, 1~6=데이터행 0~5
+  const lines=[1];
+  for(let i=0;i<6;i++) lines.push(schedLines((sc[i]||{}).detail||""));
+  // 셀 크기 조정 (cellAddr와 cellSz는 셀마다 1:1, 등장 순서 동일)
+  const addrs=[...tbl.matchAll(/<hp:cellAddr colAddr="(\d+)" rowAddr="(\d+)"\/>/g)];
+  const szs=[...tbl.matchAll(/<hp:cellSz width="(\d+)" height="(\d+)"\/>/g)];
+  const rowH={};
+  szs.forEach((m,i)=>{
+    const col=+addrs[i][1], row=+addrs[i][2];
+    let w=+m[1];
+    if(col===1) w+=SCHED_W_DELTA;       // 세부일정 넓힘
+    else if(col===2) w-=SCHED_W_DELTA;  // 비고 줄임
+    const h=Math.max(+m[2], SCHED_ROW_MARGIN + (lines[row]||1)*SCHED_STRIDE);
+    rowH[row]=h;
+    reps.push([T0+m.index, T0+m.index+m[0].length, '<hp:cellSz width="'+w+'" height="'+h+'"/>']);
+  });
+  // 비고 셀 lineseg horzsize 축소 (가로 넘침 방지)
+  [...tbl.matchAll(/horzsize="11588"/g)].forEach(m=>{
+    reps.push([T0+m.index, T0+m.index+m[0].length, 'horzsize="'+(11588-SCHED_W_DELTA)+'"']);
+  });
+  // 표 전체 높이 = 행 높이 합
+  const totalH=Object.values(rowH).reduce((a,b)=>a+b,0);
+  const szm=tbl.match(/<hp:sz width="50760"[^/]*\/>/);
+  reps.push([T0+szm.index, T0+szm.index+szm[0].length, szm[0].replace(/height="\d+"/,'height="'+totalH+'"')]);
+  return reps;
 }
 // schedule detail linesegarray 위치 (원본 XML 기준, 행0~행5 순서)
 SCHED_LSA = [[[20800, 20979]], [[23179, 23358]], [[25953, 26132]], [[28401, 28580]], [[30826, 31005]], [[33201, 33380]]];
@@ -234,6 +280,8 @@ function buildHWPX(data){
 
   // 1. 주요일정 (hp:t 및 자기닫힘 run 모두 처리)
   const sc = data.schedule||[];
+  // 1-0. 표 크기 조정: 비고 폭↓/세부일정 폭↑ + 행 높이 동적 확장
+  schedSizeReps(xml, sc).forEach(r=>reps.push(r));
   for(let i=0;i<6;i++){
     const s = sc[i]||{date:"",detail:"",note:""};
     const vals = [s.date||"", s.detail||"", s.note||""];

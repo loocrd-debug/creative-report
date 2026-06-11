@@ -412,7 +412,8 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
 const DAYS=['일','월','화','수','목','금','토'];
 const NOW=new Date();
 const TSTR=`${NOW.getFullYear()}. ${String(NOW.getMonth()+1).padStart(2,'0')}. ${String(NOW.getDate()).padStart(2,'0')}. (${DAYS[NOW.getDay()]})`;
-const TKEY=NOW.toISOString().split('T')[0];
+const localKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; // 한국시간(로컬) 기준 YYYY-MM-DD
+const TKEY=localKey(NOW);
 
 // 주간 날짜
 const wD=NOW.getDay();
@@ -420,7 +421,7 @@ const wMon=new Date(NOW); wMon.setDate(NOW.getDate()-(wD===0?6:wD-1));
 const wFri=new Date(wMon); wFri.setDate(wMon.getDate()+4);
 const wFmt=d=>`${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 const WEEK_LABEL=`${wFmt(wMon)} ~ ${wFmt(wFri)}`;
-const WEEK_KEYS=Array.from({length:5},(_,i)=>{const d=new Date(wMon);d.setDate(wMon.getDate()+i);return d.toISOString().split('T')[0];});
+const WEEK_KEYS=Array.from({length:5},(_,i)=>{const d=new Date(wMon);d.setDate(wMon.getDate()+i);return localKey(d);});
 
 document.getElementById('hdDate').textContent=TSTR;
 document.getElementById('rptDate').value=TSTR;
@@ -458,7 +459,7 @@ function getRecentWeekdayKey(fromDate) {
   d.setDate(d.getDate() - 1); // 어제부터 시작
   // 주말 건너뛰기
   while(d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0,10);
+  return localKey(d);
 }
 
 // 오늘 일일보고 자동 로드 - 화면에 직접 채우기
@@ -471,7 +472,7 @@ async function loadDailyShared() {
     // 오늘 shared 없으면 최근 평일 shared 읽기
     const prevKey = getRecentWeekdayKey();
     const prev = await window.fbGet(`reports/daily/${prevKey}/shared`);
-    if(prev) loadSaved(prev);
+    if(prev){ loadSaved(prev); document.getElementById('rptDate').value=TSTR; } // 내용은 이어받되 보고일자는 오늘로
   } catch(e) {
     console.log('loadDailyShared 오류:', e.message);
   }
@@ -857,7 +858,7 @@ async function mergeDataByKey(dateKey){
 async function loadYesterday(){
   const yesterday=new Date();
   yesterday.setDate(yesterday.getDate()-1);
-  const ykey=yesterday.toISOString().split('T')[0];
+  const ykey=localKey(yesterday);
 
   // shared 키 우선, 없으면 취합
   let merged = await window.fbGet(`reports/daily/${ykey}/shared`);

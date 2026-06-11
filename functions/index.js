@@ -449,6 +449,34 @@ function buildWeeklyPropRows(xml, proposals){
   return { rows, rowCnt: list.length+1, tblH: W_PROP_HEADER_H + totalH };
 }
 
+// 페이지2 제안표 동적 행 생성 (원본: 헤더 + 데이터행 2개)
+const W2_PROP_TR = [94735, 99595];      // 데이터행 2개 전체 범위
+const W2_PROP_ROW1 = [94735, 97164];    // 행1 템플릿 범위
+const W2_PROP_ROWCNT = [91851, 91861];  // rowCnt="3" 위치
+const W2_PROP_TBL_H = [91966, 91979];   // height="6030" 위치
+const W2_PROP_HEADER_H = 2056;          // 6030 - 1987*2
+const W2_PROP_ROW_BASE_H = 1987;
+
+function buildWeeklyPropRows2(xml, proposals){
+  const tpl = xml.slice(W2_PROP_ROW1[0], W2_PROP_ROW1[1])
+    .replace(/<hp:linesegarray>.*?<\/hp:linesegarray>/g, ""); // 한글이 줄배치 재계산
+  const list = (proposals && proposals.length) ? proposals : [{}];
+  let rows = "", totalH = 0;
+  list.forEach((p, i)=>{
+    const vals = [p.title||"", p.person||"", p.date||""];
+    let len=0; for(const c of vals[0]) len+=(c.charCodeAt(0)>127)?2:1;
+    const lines = Math.max(1, Math.ceil(len/39));
+    const rowH = W2_PROP_ROW_BASE_H + (lines-1)*W_PROP_LINE_STRIDE;
+    let ti = 0;
+    rows += tpl
+      .replace(/rowAddr="1"/g, 'rowAddr="'+(i+1)+'"')
+      .replace(/height="1987"/g, 'height="'+rowH+'"')
+      .replace(/<hp:t>[^<]*<\/hp:t>/g, ()=> "<hp:t>"+ex(vals[ti++])+"</hp:t>");
+    totalH += rowH;
+  });
+  return { rows, rowCnt: list.length+1, tblH: W2_PROP_HEADER_H + totalH };
+}
+
 // 페이지1 제안표 단일 데이터행 템플릿 (원본에서 추출)
 let P1_ROW_TPL="";
 
@@ -529,12 +557,11 @@ function buildWeeklyHWPX(data){
   reps.push([W_PROP_ROWCNT[0], W_PROP_ROWCNT[1], 'rowCnt="'+wpr.rowCnt+'"']);
   reps.push([W_PROP_TBL_H[0], W_PROP_TBL_H[1], 'height="'+wpr.tblH+'"']);
   reps.push([POS_W.collab[0],POS_W.collab[1],"<hp:t>"+ex(data.collab||"- 특이사항 없음")+"</hp:t>"]);
-  [POS_W.p2_r1,POS_W.p2_r2].forEach((rowCells,ri)=>{
-    const p=(data.proposals2||[])[ri]||{};
-    rowCells.forEach(([ps,pe],ci)=>{
-      reps.push([ps,pe,"<hp:t>"+ex([p.title||"",p.person||"",p.date||""][ci])+"</hp:t>"]);
-    });
-  });
+  // 페이지2 제안표 - 데이터행 동적 생성 (행 수만큼 복제 + rowCnt/표높이 갱신)
+  const wpr2=buildWeeklyPropRows2(xml, data.proposals2||[]);
+  reps.push([W2_PROP_TR[0], W2_PROP_TR[1], wpr2.rows]);
+  reps.push([W2_PROP_ROWCNT[0], W2_PROP_ROWCNT[1], 'rowCnt="'+wpr2.rowCnt+'"']);
+  reps.push([W2_PROP_TBL_H[0], W2_PROP_TBL_H[1], 'height="'+wpr2.tblH+'"']);
   const bizXml=(data.biz_details||[]).map(b=>{
     const ts=[...TPL_W.bizName.matchAll(/<hp:t>[^<]*<\/hp:t>/g)];
     const nameRow=ts.length>=2

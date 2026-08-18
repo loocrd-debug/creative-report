@@ -163,7 +163,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0818-3</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0818-4</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -442,7 +442,12 @@ document.getElementById('weekRange').value=WEEK_LABEL;
 document.getElementById('wkRangeLabel').textContent=WEEK_LABEL;
 
 // ── Firebase ready ──
-document.addEventListener('fb-ready',()=>{
+// fb-ready 이벤트 + 폴링 이중 안전장치: 이벤트를 놓쳐도 반드시 초기 로드 수행
+let APP_INIT_DONE=false;
+function initApp(){
+  if(APP_INIT_DONE) return;
+  if(!window.FB_READY || !window.fbGet){ setTimeout(initApp, 300); return; } // SDK 준비까지 재시도
+  APP_INIT_DONE=true;
   const live=!window.IS_DEMO;
   const badge=document.getElementById('fbBadge');
   badge.className='fbbadge '+(live?'fblive':'fbdemo');
@@ -454,7 +459,9 @@ document.addEventListener('fb-ready',()=>{
   if(live&&window.fbWatch){
     window.fbWatch(`reports/daily/${TKEY}`,data=>{renderLive(Object.values(data||{}));});
   }
-});
+}
+document.addEventListener('fb-ready', initApp);
+initApp(); // 이벤트가 이미 지나갔거나 오지 않아도 폴링으로 반드시 진입
 
 // ── 탭 전환 ──
 function goTab(t){

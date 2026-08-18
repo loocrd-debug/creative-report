@@ -163,7 +163,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;cursor:pointer;" title="클릭: 진단 정보" onclick="showDiag()">v0818-10</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;cursor:pointer;" title="클릭: 진단 정보" onclick="showDiag()">v0818-11</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -441,6 +441,46 @@ document.getElementById('rptDate').value=TSTR;
 document.getElementById('weekRange').value=WEEK_LABEL;
 document.getElementById('wkRangeLabel').textContent=WEEK_LABEL;
 
+// ── 자동 임시저장 (5초마다 로컬 보관, 탭 리셋/새로고침 대비) ──
+function saveDraft(){
+  try{
+    if(document.querySelector('.tab.on')?.id!=='tb-daily') return;
+    const data=getDailyData();
+    const size=JSON.stringify(data).length;
+    if(size<300) return; // 빈 화면은 임시저장하지 않음
+    localStorage.setItem('draft/'+TKEY, JSON.stringify({at:Date.now(), size:size, data:data}));
+  }catch(e){}
+}
+setInterval(saveDraft, 5000);
+window.addEventListener('beforeunload', saveDraft);
+
+function offerDraftRestore(sharedSavedAt){
+  try{
+    const raw=localStorage.getItem('draft/'+TKEY);
+    if(!raw) return;
+    const d=JSON.parse(raw);
+    // 임시저장이 DB 저장보다 최신이고 내용이 더 많을 때만 제안
+    if(!(d.at > (sharedSavedAt||0)+7000)) return;
+    const cur=JSON.stringify(getDailyData()).length;
+    if(d.size <= cur+50) return;
+    const t=new Date(d.at);
+    const bar=document.createElement('div');
+    bar.id='draftBar';
+    bar.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#1565c0;color:#fff;padding:9px 16px;border-radius:20px;font-size:12px;z-index:9998;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;';
+    bar.innerHTML=`💾 저장되지 않은 작성 내용(${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')} 임시저장)이 있습니다
+      <button style="background:#fff;color:#1565c0;border:none;border-radius:12px;padding:4px 12px;font-size:11px;cursor:pointer;font-weight:700;" onclick="restoreDraft()">불러오기</button>
+      <button style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6);border-radius:12px;padding:4px 10px;font-size:11px;cursor:pointer;" onclick="document.getElementById('draftBar').remove()">무시</button>`;
+    document.body.appendChild(bar);
+  }catch(e){}
+}
+function restoreDraft(){
+  try{
+    const d=JSON.parse(localStorage.getItem('draft/'+TKEY));
+    if(d&&d.data){ loadSaved(d.data); showLoadBanner('✅ 임시저장 내용을 불러왔습니다 — 확인 후 반드시 저장을 눌러주세요'); }
+    const bar=document.getElementById('draftBar'); if(bar) bar.remove();
+  }catch(e){}
+}
+
 // ── 자체 확인창 (브라우저 대화상자 차단에 영향받지 않음) ──
 function askConfirm(msg){
   return new Promise(res=>{
@@ -474,7 +514,7 @@ window.addEventListener('error',e=>{ window._DIAG.errors.push((e.message||'?')+'
 window.addEventListener('unhandledrejection',e=>{ window._DIAG.errors.push('P:'+((e.reason&&e.reason.message)||e.reason)); });
 async function showDiag(){
   let s='📋 진단 정보 (캡처해서 보내주세요)\n';
-  s+='버전: v0818-10 | 모드: '+(window.IS_DEMO?'DEMO(로컬저장)':'LIVE')+' | fbGet: '+(typeof window.fbGet)+'\n';
+  s+='버전: v0818-11 | 모드: '+(window.IS_DEMO?'DEMO(로컬저장)':'LIVE')+' | fbGet: '+(typeof window.fbGet)+'\n';
   s+='오늘 키: '+TKEY+'\n';
   try{
     const sh=await window.fbGet(`reports/daily/${TKEY}/shared`);
@@ -621,7 +661,7 @@ async function loadDailyShared() {
     // 오늘 shared 읽기
     let data = await window.fbGet(`reports/daily/${TKEY}/shared`);
     window._DIAG.lastDailyLoad={t:new Date().toLocaleTimeString(), today:!!data};
-    if(data){ window._loadedSavedAt=data.savedAt||0; loadSaved(data); setTimeout(refreshNewMarks, 300); return; }
+    if(data){ window._loadedSavedAt=data.savedAt||0; loadSaved(data); setTimeout(refreshNewMarks, 300); setTimeout(()=>offerDraftRestore(data.savedAt||0), 800); return; }
     // 오늘 shared 없으면 최근 평일 shared 읽기
     const prevKey = getRecentWeekdayKey();
     const prev = await window.fbGet(`reports/daily/${prevKey}/shared`);
@@ -1766,6 +1806,16 @@ async function doSave(){
     // 저장 충돌 감지: 이 화면을 연 뒤에 다른 탭/사람이 저장했으면 경고
     try{
       const cur=await window.fbGet(`reports/daily/${TKEY}/shared`);
+      // 내용 축소 경고: 저장하려는 내용이 현재 저장본보다 눈에 띄게 적으면 확인
+      if(cur){
+        const curN=(cur.sum_issues||[]).length+(cur.orig_issues||[]).length;
+        const newN=(data.sum_issues||[]).length+(data.orig_issues||[]).length;
+        const curSize=JSON.stringify(cur).length, newSize=JSON.stringify(data).length;
+        if(newN<curN || newSize<curSize*0.7){
+          const go2=await askConfirm(`⚠️ 저장하려는 내용이 현재 저장본보다 적습니다.\n(사업 ${curN}→${newN}, 크기 ${curSize}→${newSize})\n\n화면이 이전 상태로 리셋된 탭일 수 있습니다.\n그래도 저장할까요?`);
+          if(!go2){ btn.textContent='💾 저장'; btn.disabled=false; return; }
+        }
+      }
       if(cur && cur.savedAt && cur.savedAt !== (window._loadedSavedAt||0)){
         const ct=new Date(cur.savedAt);
         const hh=String(ct.getHours()).padStart(2,'0'), mm=String(ct.getMinutes()).padStart(2,'0');

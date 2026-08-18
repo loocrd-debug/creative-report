@@ -163,7 +163,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0818-5</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0818-6</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -1096,12 +1096,12 @@ function setupOnDisconnect(){
 // ── 오늘 저장 이력 ──
 let HIST_CACHE={};
 let _histLastLoad=0;
-async function loadSaveHistory(){
+async function loadSaveHistory(force){
   const wrap=document.getElementById('histWrap');
   const box=document.getElementById('histBox');
   if(!wrap||!box||!window.fbGet) return;
   const now=Date.now();
-  if(now-_histLastLoad<3000) return; // 실시간 이벤트 과호출 방지
+  if(!force && now-_histLastLoad<3000) return; // 실시간 이벤트 과호출 방지 (force면 즉시)
   _histLastLoad=now;
   try{
     const hist=await window.fbGet(`reports/dailyHistory/${TKEY}`);
@@ -1126,7 +1126,15 @@ async function restoreHistory(key){
   const hh=String(t.getHours()).padStart(2,'0'), mm=String(t.getMinutes()).padStart(2,'0');
   if(!confirm(`${hh}:${mm} (${h.writer||'?'}) 저장 시점의 내용을 화면에 불러올까요?\n\n※ 저장 버튼을 누르기 전까지 현재 DB 내용은 유지됩니다.`)) return;
   loadSaved(h.data);
-  showLoadBanner(`✅ ${hh}:${mm} 저장본 불러옴 — 필요 시 수정 후 저장하세요`);
+  // 복원이 일어났음을 눈에 보이게: 상단 이동 + 파란 플래시
+  const pg=document.getElementById('pg-daily');
+  if(pg){
+    pg.scrollIntoView({behavior:'smooth', block:'start'});
+    pg.style.transition='box-shadow .3s';
+    pg.style.boxShadow='0 0 0 3px rgba(79,195,247,.55)';
+    setTimeout(()=>{ pg.style.boxShadow=''; }, 1200);
+  }
+  showLoadBanner(`✅ ${hh}:${mm} (${h.writer||''}) 저장본을 화면에 불러왔습니다 — 현재 내용과 같다면 변화가 없을 수 있어요`);
 }
 async function pruneHistory(){
   // 하루 이력 최대 30개 유지 (오래된 것부터 삭제)
@@ -1705,7 +1713,7 @@ async function doSave(){
     const b=document.getElementById(bid);
     b.classList.add('show'); setTimeout(()=>b.classList.remove('show'),3000);
     loadLive();
-    loadSaveHistory();
+    loadSaveHistory(true); // 방금 저장한 이력 즉시 표시
     loadDailyShared();
   }else if(activeTab==='tb-weekly'){
     const rep=document.getElementById('reporter').value;

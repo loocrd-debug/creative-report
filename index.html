@@ -163,7 +163,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0818-4</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0818-5</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -457,7 +457,7 @@ function initApp(){
   renderWeekDays();
   setTimeout(loadDailyShared, 200); // Firebase 준비 후 로드
   if(live&&window.fbWatch){
-    window.fbWatch(`reports/daily/${TKEY}`,data=>{renderLive(Object.values(data||{}));});
+    window.fbWatch(`reports/daily/${TKEY}`,data=>{renderLive(Object.values(data||{})); loadSaveHistory();});
   }
 }
 document.addEventListener('fb-ready', initApp);
@@ -1014,9 +1014,15 @@ async function markLoaderUsed(user, fromKey){
 }
 // 불러오기 공통 가드: 작성자 미선택 시 차단
 function loadGuardUser(){
-  const user=document.getElementById('userSel').value;
-  if(!user){ alert('⚠️ 작성자를 먼저 선택해주세요.\n(작성자 선택 없이 불러오기를 실행할 수 없습니다 — 임의 초기화 방지)'); return null; }
-  return user;
+  const sel=document.getElementById('userSel');
+  if(!sel.value){
+    alert('⚠️ 작성자를 먼저 선택해주세요.\n(작성자 선택 없이 불러오기를 실행할 수 없습니다 — 임의 초기화 방지)');
+    sel.focus();
+    sel.style.outline='2px solid #ff6b6b'; sel.style.outlineOffset='2px';
+    setTimeout(()=>{ sel.style.outline=''; sel.style.outlineOffset=''; }, 3000);
+    return null;
+  }
+  return sel.value;
 }
 async function loadYesterday(){
   const user=loadGuardUser(); if(!user) return;
@@ -1089,10 +1095,14 @@ function setupOnDisconnect(){
 
 // ── 오늘 저장 이력 ──
 let HIST_CACHE={};
+let _histLastLoad=0;
 async function loadSaveHistory(){
   const wrap=document.getElementById('histWrap');
   const box=document.getElementById('histBox');
   if(!wrap||!box||!window.fbGet) return;
+  const now=Date.now();
+  if(now-_histLastLoad<3000) return; // 실시간 이벤트 과호출 방지
+  _histLastLoad=now;
   try{
     const hist=await window.fbGet(`reports/dailyHistory/${TKEY}`);
     if(!hist){ wrap.style.display='none'; return; }

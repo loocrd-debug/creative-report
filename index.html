@@ -163,7 +163,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;cursor:pointer;" title="클릭: 진단 정보" onclick="showDiag()">v0818-9</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;cursor:pointer;" title="클릭: 진단 정보" onclick="showDiag()">v0818-10</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -195,7 +195,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
 
   <!-- 어제/날짜 불러오기 -->
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;padding:0 2px;">
-    <button class="btn bg" onclick="loadYesterday()" style="font-size:11px;">📋 어제 불러오기</button>
+    <button class="btn bg" onclick="loadYesterday()" style="font-size:11px;">📋 최근 보고 불러오기</button>
     <input type="date" id="loadDatePick" style="background:var(--s2);border:1px solid var(--bd);border-radius:5px;color:var(--t1);padding:4px 8px;font-size:11px;">
     <button class="btn bg" onclick="loadByDate()" style="font-size:11px;">📂 날짜 불러오기</button>
   </div>
@@ -474,7 +474,7 @@ window.addEventListener('error',e=>{ window._DIAG.errors.push((e.message||'?')+'
 window.addEventListener('unhandledrejection',e=>{ window._DIAG.errors.push('P:'+((e.reason&&e.reason.message)||e.reason)); });
 async function showDiag(){
   let s='📋 진단 정보 (캡처해서 보내주세요)\n';
-  s+='버전: v0818-9 | 모드: '+(window.IS_DEMO?'DEMO(로컬저장)':'LIVE')+' | fbGet: '+(typeof window.fbGet)+'\n';
+  s+='버전: v0818-10 | 모드: '+(window.IS_DEMO?'DEMO(로컬저장)':'LIVE')+' | fbGet: '+(typeof window.fbGet)+'\n';
   s+='오늘 키: '+TKEY+'\n';
   try{
     const sh=await window.fbGet(`reports/daily/${TKEY}/shared`);
@@ -1088,14 +1088,17 @@ function loadGuardUser(){
 }
 async function loadYesterday(){
   const user=loadGuardUser(); if(!user) return;
-  const yesterday=new Date();
-  yesterday.setDate(yesterday.getDate()-1);
-  const ykey=localKey(yesterday);
-
-  // shared 키 우선, 없으면 취합
-  let merged = await window.fbGet(`reports/daily/${ykey}/shared`);
-  if(!merged) merged = await mergeDataByKey(ykey);
-  if(!merged){ alert(`${ykey} 작성 데이터가 없습니다.`); return; }
+  // 어제부터 거꾸로 "가장 최근 작성일"을 자동 탐색 (주말·휴일·미작성일 건너뜀, 최대 14일)
+  let merged=null, ykey=null;
+  const d=new Date();
+  for(let i=1;i<=14;i++){
+    d.setDate(d.getDate()-1);
+    const k=localKey(d);
+    merged = await window.fbGet(`reports/daily/${k}/shared`);
+    if(!merged) merged = await mergeDataByKey(k);
+    if(merged){ ykey=k; break; }
+  }
+  if(!merged){ showWarnBanner('최근 2주 내 작성된 보고가 없습니다.'); return; }
 
   // 오늘 저장본 보호: 이미 저장된 오늘 내용이 있으면 확인 후 진행
   const todayShared = await window.fbGet(`reports/daily/${TKEY}/shared`);

@@ -140,7 +140,8 @@ textarea{resize:vertical;min-height:60px;line-height:1.6;}
 .drag-h{cursor:grab;color:var(--t3);font-size:14px;padding:2px 5px;user-select:none;flex-shrink:0;line-height:1;}
 .drag-h:hover{color:var(--ac);}
 .drag-h:active{cursor:grabbing;}
-.item.dragging{opacity:.45;outline:1.5px dashed var(--ac);outline-offset:2px;}
+.item.dragging,.irow.dragging,.brow.dragging{opacity:.45;outline:1.5px dashed var(--ac);outline-offset:2px;}
+.irow .drag-h,.brow .drag-h{font-size:11px;padding:1px 3px;}
 /* 금일 새로 작성된 텍스트 강조 */
 input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px rgba(255,216,77,.30); }
 </style>
@@ -162,7 +163,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0818-1</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0818-2</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -470,27 +471,29 @@ function getRecentWeekdayKey(fromDate) {
   return localKey(d);
 }
 
-// ── 사업 블록 드래그 순서 변경 ──
-// 핸들(⠿)을 잡으면 해당 .item을 같은 목록 안에서 위아래로 이동
+// ── 드래그 순서 변경 (사업 블록 .item + 항목행 .irow + 세부/일반행 .brow) ──
+// 핸들(⠿)을 잡으면 가장 가까운 이동 단위를 같은 목록 안에서 위아래로 이동
+const DRAG_UNITS = ['irow','brow','item']; // 안쪽 단위 우선
 document.addEventListener('mousedown', e=>{
   const h = e.target.closest && e.target.closest('.drag-h');
   if(!h) return;
-  const item = h.closest('.item');
-  if(item) item.setAttribute('draggable','true');
+  const unit = h.closest('.irow, .brow, .item');
+  if(unit) unit.setAttribute('draggable','true');
 });
 document.addEventListener('dragstart', e=>{
-  const item = e.target.closest && e.target.closest('.item[draggable="true"]');
-  if(!item) return;
-  item.classList.add('dragging');
+  const unit = e.target.closest && e.target.closest('.irow[draggable="true"], .brow[draggable="true"], .item[draggable="true"]');
+  if(!unit) return;
+  unit.classList.add('dragging');
   if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',''); } // Firefox 필수
 });
 document.addEventListener('dragover', e=>{
-  const dragging = document.querySelector('.item.dragging');
+  const dragging = document.querySelector('.dragging');
   if(!dragging) return;
   const box = dragging.parentElement;
   if(e.target !== box && !box.contains(e.target)) return; // 같은 목록 안에서만 이동
   e.preventDefault();
-  const after = [...box.querySelectorAll('.item:not(.dragging)')].reduce((c,el)=>{
+  const cls = DRAG_UNITS.find(c=>dragging.classList.contains(c)) || 'item';
+  const after = [...box.querySelectorAll(':scope > .'+cls+':not(.dragging)')].reduce((c,el)=>{
     const r = el.getBoundingClientRect();
     const off = e.clientY - r.top - r.height/2;
     return (off < 0 && off > c.off) ? {off, el} : c;
@@ -498,10 +501,10 @@ document.addEventListener('dragover', e=>{
   if(after) box.insertBefore(dragging, after); else box.appendChild(dragging);
 });
 document.addEventListener('dragend', ()=>{
-  const item = document.querySelector('.item.dragging');
-  if(item){
-    item.classList.remove('dragging');
-    item.removeAttribute('draggable');
+  const unit = document.querySelector('.dragging');
+  if(unit){
+    unit.classList.remove('dragging');
+    unit.removeAttribute('draggable');
     if(typeof updateWeeklyPreview === 'function') updateWeeklyPreview(); // 주간 미리보기 갱신
   }
 });
@@ -1302,7 +1305,7 @@ function delTR(btn){const tr=btn.closest('tr');if(tr.parentElement.querySelector
 function addBR(cid,sym){
   const c=document.getElementById(cid); if(!c)return;
   const d=document.createElement('div'); d.className='brow';
-  d.innerHTML=`<div class="bsym bgr">${sym}</div><div class="binp"><input type="text"></div><button class="btn bd" style="padding:2px 5px" onclick="delBR(this)">✕</button>`;
+  d.innerHTML=`<div class="drag-h" title="끌어서 순서 이동">⠿</div><div class="bsym bgr">${sym}</div><div class="binp"><input type="text"></div><button class="btn bd" style="padding:2px 5px" onclick="delBR(this)">✕</button>`;
   c.appendChild(d);
 }
 function delBR(btn){const r=btn.closest('.brow');if(r.parentElement.querySelectorAll('.brow').length>1)r.remove();}
@@ -1348,6 +1351,7 @@ function addItemRow(containerId, withDetail){
   wrap.style.cssText = 'border:1px solid var(--bd);border-radius:5px;padding:5px 6px;margin-bottom:4px;';
   wrap.innerHTML = `
     <div style="display:flex;gap:7px;align-items:center;">
+      <div class="drag-h" title="끌어서 순서 이동">⠿</div>
       <div class="bsym bgr">-</div>
       <div class="binp"><input type="text" class="iitem" placeholder="업무 내용"></div>
       <button class="btn bd" style="padding:2px 5px" onclick="this.closest('.irow').remove()">✕</button>
@@ -1378,7 +1382,7 @@ function addBiz(cid){
       <button class="btn bd" style="padding:2px 5px;flex-shrink:0" onclick="this.closest('.item').remove()">✕</button>
     </div>
     <div id="bd${idx}">
-      <div class="brow"><div class="bsym bgr">ㆍ</div><div class="binp"><input type="text" placeholder="세부 내용"></div><button class="btn bg" style="padding:2px 5px" onclick="delBR(this)">✕</button></div>
+      <div class="brow"><div class="drag-h" title="끌어서 순서 이동">⠿</div><div class="bsym bgr">ㆍ</div><div class="binp"><input type="text" placeholder="세부 내용"></div><button class="btn bg" style="padding:2px 5px" onclick="delBR(this)">✕</button></div>
     </div>
     <button class="btn bg" style="font-size:10px;margin-top:5px;" onclick="addBR('bd${idx}','ㆍ')">+ 항목 추가</button>`;
   box.appendChild(div);

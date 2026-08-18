@@ -162,7 +162,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0611-4</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;" title="실행 중인 빌드 버전">v0818-1</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -981,7 +981,31 @@ async function mergeDataByKey(dateKey){
   return merged;
 }
 
+function showLoadBanner(msg){
+  const banner=document.createElement('div');
+  banner.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--ac);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+  banner.textContent=msg;
+  document.body.appendChild(banner);
+  setTimeout(()=>banner.remove(), 4000);
+}
+// 불러오기 사용자를 공유 DB에 기록 → 모든 화면의 이름 칩에 연두색 표시
+async function markLoaderUsed(user, fromKey){
+  try{
+    if(!window.fbSet || window.IS_DEMO) return;
+    const key=user.replace(/[\s.()]/g,'_');
+    await window.fbSet(`reports/daily/${TKEY}/${key}/writer`, user);
+    await window.fbSet(`reports/daily/${TKEY}/${key}/loadedFrom`, fromKey);
+    loadLive();
+  }catch(e){}
+}
+// 불러오기 공통 가드: 작성자 미선택 시 차단
+function loadGuardUser(){
+  const user=document.getElementById('userSel').value;
+  if(!user){ alert('⚠️ 작성자를 먼저 선택해주세요.\n(작성자 선택 없이 불러오기를 실행할 수 없습니다 — 임의 초기화 방지)'); return null; }
+  return user;
+}
 async function loadYesterday(){
+  const user=loadGuardUser(); if(!user) return;
   const yesterday=new Date();
   yesterday.setDate(yesterday.getDate()-1);
   const ykey=localKey(yesterday);
@@ -990,32 +1014,36 @@ async function loadYesterday(){
   let merged = await window.fbGet(`reports/daily/${ykey}/shared`);
   if(!merged) merged = await mergeDataByKey(ykey);
   if(!merged){ alert(`${ykey} 작성 데이터가 없습니다.`); return; }
+
+  // 오늘 저장본 보호: 이미 저장된 오늘 내용이 있으면 확인 후 진행
+  const todayShared = await window.fbGet(`reports/daily/${TKEY}/shared`);
+  if(todayShared && !confirm(`오늘(${TKEY}) 저장된 보고가 이미 있습니다.\n화면을 ${ykey} 내용으로 교체할까요?\n\n※ 저장 버튼을 누르기 전까지 오늘 저장본(DB)은 그대로 유지됩니다.`)) return;
+
   window._mergedData = merged;
   loadSaved(merged);
-
-  // 취합 완료 배너
-  const banner=document.createElement('div');
-  banner.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--ac);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.3);';
-  banner.textContent=`✅ ${ykey} / ${writers.length}명 취합 완료 — 수정 후 저장하세요`;
-  document.body.appendChild(banner);
-  setTimeout(()=>banner.remove(), 4000);
+  markLoaderUsed(user, ykey);
+  showLoadBanner(`✅ ${ykey} 내용 불러옴 — 수정 후 저장하세요`);
 }
 async function loadByDate(){
+  const user=loadGuardUser(); if(!user) return;
   const datePick=document.getElementById('loadDatePick').value;
   if(!datePick){alert('날짜를 선택해주세요.');return;}
 
-  const merged = await mergeDataByKey(datePick);
+  // 저장본(shared) 우선 → 오늘 날짜를 선택하면 오늘 마지막 저장본도 불러옴
+  let merged = await window.fbGet(`reports/daily/${datePick}/shared`);
+  if(!merged) merged = await mergeDataByKey(datePick);
   if(!merged){ alert(`${datePick} 작성 데이터가 없습니다.`); return; }
 
-  const writers = Object.keys((await window.fbGet(`reports/daily/${datePick}`))||{});
+  // 오늘이 아닌 날짜를 불러올 때만 오늘 저장본 보호 확인
+  if(datePick !== TKEY){
+    const todayShared = await window.fbGet(`reports/daily/${TKEY}/shared`);
+    if(todayShared && !confirm(`오늘(${TKEY}) 저장된 보고가 이미 있습니다.\n화면을 ${datePick} 내용으로 교체할까요?\n\n※ 저장 버튼을 누르기 전까지 오늘 저장본(DB)은 그대로 유지됩니다.`)) return;
+  }
+
   window._mergedData = merged;
   loadSaved(merged);
-
-  const banner=document.createElement('div');
-  banner.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--ac);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.3);';
-  banner.textContent=`✅ ${datePick} / ${writers.length}명 취합 완료 — 수정 후 저장하세요`;
-  document.body.appendChild(banner);
-  setTimeout(()=>banner.remove(), 4000);
+  markLoaderUsed(user, datePick);
+  showLoadBanner(`✅ ${datePick} 내용 불러옴 — 수정 후 저장하세요`);
 }
 async function onUserSelChange(){
   // 작성자 선택 = editing 상태 표시만 v2
@@ -1064,19 +1092,22 @@ async function loadLive(){
 function renderLive(entries){
   const box=document.getElementById('liveBox');
   // status별 분류
-  const statusMap={};
+  const statusMap={}, loadedMap={};
   entries.filter(Boolean).forEach(e=>{
     // writer와 status가 직접 있거나 문자열인 경우 처리
     if(typeof e === 'string') return;  // status:'done' 같은 값 무시
     if(e.writer) statusMap[e.writer]=e.status||'done';
+    if(e.writer && e.loadedFrom) loadedMap[e.writer]=e.loadedFrom;
   });
   const doneCount=Object.values(statusMap).filter(s=>s==='done').length;
   box.innerHTML=members.map(m=>{
     const full=`${m.n} ${m.r}`;
     const st=statusMap[full];
-    if(st==='done') return`<div class="chip cdone"><span class="cdot"></span>${m.n}<span style="font-size:10px;margin-left:2px;">✓</span></div>`;
-    if(st==='editing') return`<div class="chip cedit"><span style="font-size:11px;">✏️</span>${m.n}</div>`;
-    return`<div class="chip cpend"><span class="cdot"></span>${m.n}</div>`;
+    const ld=loadedMap[full];
+    const lds=ld?` style="border-color:#7ed957;color:#7ed957;box-shadow:0 0 5px rgba(126,217,87,.35);" title="${ld} 불러오기 사용"`:'';
+    if(st==='done') return`<div class="chip cdone"${lds}><span class="cdot"></span>${m.n}<span style="font-size:10px;margin-left:2px;">✓</span></div>`;
+    if(st==='editing') return`<div class="chip cedit"${lds}><span style="font-size:11px;">✏️</span>${m.n}</div>`;
+    return`<div class="chip cpend"${lds}><span class="cdot"></span>${m.n}</div>`;
   }).join('')+`<span style="color:var(--t3);font-size:11px;margin-left:6px;">${doneCount}/${members.length}명 완료</span>`;
 }
 

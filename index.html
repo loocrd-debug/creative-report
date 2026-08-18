@@ -163,7 +163,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;cursor:pointer;" title="클릭: 진단 정보" onclick="showDiag()">v0818-7</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;cursor:pointer;" title="클릭: 진단 정보" onclick="showDiag()">v0818-8</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -441,13 +441,40 @@ document.getElementById('rptDate').value=TSTR;
 document.getElementById('weekRange').value=WEEK_LABEL;
 document.getElementById('wkRangeLabel').textContent=WEEK_LABEL;
 
+// ── 자체 확인창 (브라우저 대화상자 차단에 영향받지 않음) ──
+function askConfirm(msg){
+  return new Promise(res=>{
+    const bg=document.createElement('div');
+    bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    bg.innerHTML=`<div style="background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:18px 20px;max-width:420px;width:90%;">
+      <div style="font-size:12px;line-height:1.7;white-space:pre-line;color:var(--t1);">${msg}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+        <button class="btn bg" data-a="0" style="padding:6px 14px;">취소</button>
+        <button class="btn" data-a="1" style="padding:6px 14px;background:var(--ac);color:#fff;border:none;border-radius:5px;cursor:pointer;">확인</button>
+      </div></div>`;
+    bg.addEventListener('click',e=>{
+      const a=e.target.getAttribute&&e.target.getAttribute('data-a');
+      if(a!==null&&a!==undefined){ bg.remove(); res(a==='1'); }
+      else if(e.target===bg){ bg.remove(); res(false); }
+    });
+    document.body.appendChild(bg);
+  });
+}
+function showWarnBanner(msg){
+  const b=document.createElement('div');
+  b.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#c62828;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+  b.textContent=msg;
+  document.body.appendChild(b);
+  setTimeout(()=>b.remove(), 4000);
+}
+
 // ── 진단 수집 ──
 window._DIAG={errors:[], lastDailyLoad:null, lastSave:null};
 window.addEventListener('error',e=>{ window._DIAG.errors.push((e.message||'?')+' @'+(e.lineno||'')); });
 window.addEventListener('unhandledrejection',e=>{ window._DIAG.errors.push('P:'+((e.reason&&e.reason.message)||e.reason)); });
 async function showDiag(){
   let s='📋 진단 정보 (캡처해서 보내주세요)\n';
-  s+='버전: v0818-7 | 모드: '+(window.IS_DEMO?'DEMO(로컬저장)':'LIVE')+' | fbGet: '+(typeof window.fbGet)+'\n';
+  s+='버전: v0818-8 | 모드: '+(window.IS_DEMO?'DEMO(로컬저장)':'LIVE')+' | fbGet: '+(typeof window.fbGet)+'\n';
   s+='오늘 키: '+TKEY+'\n';
   try{
     const sh=await window.fbGet(`reports/daily/${TKEY}/shared`);
@@ -1041,7 +1068,7 @@ async function markLoaderUsed(user, fromKey){
 function loadGuardUser(){
   const sel=document.getElementById('userSel');
   if(!sel.value){
-    alert('⚠️ 작성자를 먼저 선택해주세요.\n(작성자 선택 없이 불러오기를 실행할 수 없습니다 — 임의 초기화 방지)');
+    showWarnBanner('⚠️ 작성자를 먼저 선택해주세요 (우측 상단) — 불러오기/복원은 작성자 선택 후 가능합니다');
     sel.focus();
     sel.style.outline='2px solid #ff6b6b'; sel.style.outlineOffset='2px';
     setTimeout(()=>{ sel.style.outline=''; sel.style.outlineOffset=''; }, 3000);
@@ -1062,7 +1089,7 @@ async function loadYesterday(){
 
   // 오늘 저장본 보호: 이미 저장된 오늘 내용이 있으면 확인 후 진행
   const todayShared = await window.fbGet(`reports/daily/${TKEY}/shared`);
-  if(todayShared && !confirm(`오늘(${TKEY}) 저장된 보고가 이미 있습니다.\n화면을 ${ykey} 내용으로 교체할까요?\n\n※ 저장 버튼을 누르기 전까지 오늘 저장본(DB)은 그대로 유지됩니다.`)) return;
+  if(todayShared && !await askConfirm(`오늘(${TKEY}) 저장된 보고가 이미 있습니다.\n화면을 ${ykey} 내용으로 교체할까요?\n\n※ 저장 버튼을 누르기 전까지 오늘 저장본(DB)은 그대로 유지됩니다.`)) return;
 
   window._mergedData = merged;
   loadSaved(merged);
@@ -1082,7 +1109,7 @@ async function loadByDate(){
   // 오늘이 아닌 날짜를 불러올 때만 오늘 저장본 보호 확인
   if(datePick !== TKEY){
     const todayShared = await window.fbGet(`reports/daily/${TKEY}/shared`);
-    if(todayShared && !confirm(`오늘(${TKEY}) 저장된 보고가 이미 있습니다.\n화면을 ${datePick} 내용으로 교체할까요?\n\n※ 저장 버튼을 누르기 전까지 오늘 저장본(DB)은 그대로 유지됩니다.`)) return;
+    if(todayShared && !await askConfirm(`오늘(${TKEY}) 저장된 보고가 이미 있습니다.\n화면을 ${datePick} 내용으로 교체할까요?\n\n※ 저장 버튼을 누르기 전까지 오늘 저장본(DB)은 그대로 유지됩니다.`)) return;
   }
 
   window._mergedData = merged;
@@ -1149,12 +1176,12 @@ async function restoreHistory(key){
   if(!h||!h.data){ alert('이력 데이터를 찾을 수 없습니다.'); return; }
   const t=new Date(h.at||+key);
   const hh=String(t.getHours()).padStart(2,'0'), mm=String(t.getMinutes()).padStart(2,'0');
-  if(!confirm(`${hh}:${mm} (${h.writer||'?'}) 저장 시점의 내용을 화면에 불러올까요?\n\n※ 저장 버튼을 누르기 전까지 현재 DB 내용은 유지됩니다.`)) return;
+  if(!await askConfirm(`${hh}:${mm} (${h.writer||'?'}) 저장 시점의 내용을 화면에 불러올까요?\n\n※ 저장 버튼을 누르기 전까지 현재 DB 내용은 유지됩니다.`)) return;
   loadSaved(h.data);
   // 복원이 일어났음을 눈에 보이게: 상단 이동 + 파란 플래시
   const pg=document.getElementById('pg-daily');
   if(pg){
-    pg.scrollIntoView({behavior:'smooth', block:'start'});
+    try{ pg.scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){}
     pg.style.transition='box-shadow .3s';
     pg.style.boxShadow='0 0 0 3px rgba(79,195,247,.55)';
     setTimeout(()=>{ pg.style.boxShadow=''; }, 1200);

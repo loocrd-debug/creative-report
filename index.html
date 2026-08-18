@@ -163,7 +163,7 @@ input.new-txt, textarea.new-txt{ color:#ffd84d !important; text-shadow:0 0 8px r
   <button class="tab on" id="tb-daily" onclick="goTab('daily')">📋 일일보고</button>
   <button class="tab" id="tb-weekly" onclick="goTab('weekly')">📊 주간보고</button>
   <button class="tab" id="tb-members" onclick="goTab('members')">👥 팀원 관리</button>
-  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;cursor:pointer;" title="클릭: 진단 정보" onclick="showDiag()">v0818-8</span>
+  <span style="margin-left:auto;align-self:center;font-size:9px;color:var(--t2);opacity:.55;cursor:pointer;" title="클릭: 진단 정보" onclick="showDiag()">v0818-9</span>
 </div>
 
 <!-- ════ 일일보고 ════ -->
@@ -474,7 +474,7 @@ window.addEventListener('error',e=>{ window._DIAG.errors.push((e.message||'?')+'
 window.addEventListener('unhandledrejection',e=>{ window._DIAG.errors.push('P:'+((e.reason&&e.reason.message)||e.reason)); });
 async function showDiag(){
   let s='📋 진단 정보 (캡처해서 보내주세요)\n';
-  s+='버전: v0818-8 | 모드: '+(window.IS_DEMO?'DEMO(로컬저장)':'LIVE')+' | fbGet: '+(typeof window.fbGet)+'\n';
+  s+='버전: v0818-9 | 모드: '+(window.IS_DEMO?'DEMO(로컬저장)':'LIVE')+' | fbGet: '+(typeof window.fbGet)+'\n';
   s+='오늘 키: '+TKEY+'\n';
   try{
     const sh=await window.fbGet(`reports/daily/${TKEY}/shared`);
@@ -506,7 +506,17 @@ function initApp(){
   renderWeekDays();
   setTimeout(loadDailyShared, 200); // Firebase 준비 후 로드
   if(live&&window.fbWatch){
-    window.fbWatch(`reports/daily/${TKEY}`,data=>{renderLive(Object.values(data||{})); loadSaveHistory();});
+    window.fbWatch(`reports/daily/${TKEY}`,data=>{
+      renderLive(Object.values(data||{}));
+      loadSaveHistory();
+      // 다른 탭/사람의 새 저장 감지 → 배너 안내
+      const sh=data&&data.shared;
+      if(sh && sh.savedAt && window._loadedSavedAt && sh.savedAt>window._loadedSavedAt && sh.savedAt!==window._lastNotifiedSave){
+        window._lastNotifiedSave=sh.savedAt;
+        const t=new Date(sh.savedAt);
+        showWarnBanner(`🔄 ${sh.writer||'다른 사용자'}님이 ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}에 저장했습니다 — 이 화면은 이전 상태입니다. 저장 전에 새로고침을 권장합니다.`);
+      }
+    });
   }
 }
 document.addEventListener('fb-ready', initApp);
@@ -611,7 +621,7 @@ async function loadDailyShared() {
     // 오늘 shared 읽기
     let data = await window.fbGet(`reports/daily/${TKEY}/shared`);
     window._DIAG.lastDailyLoad={t:new Date().toLocaleTimeString(), today:!!data};
-    if(data){ loadSaved(data); setTimeout(refreshNewMarks, 300); return; }
+    if(data){ window._loadedSavedAt=data.savedAt||0; loadSaved(data); setTimeout(refreshNewMarks, 300); return; }
     // 오늘 shared 없으면 최근 평일 shared 읽기
     const prevKey = getRecentWeekdayKey();
     const prev = await window.fbGet(`reports/daily/${prevKey}/shared`);
@@ -1750,6 +1760,17 @@ async function doSave(){
     const data=getDailyData();
     data.writer=user;
     data.status='done';
+    // 저장 충돌 감지: 이 화면을 연 뒤에 다른 탭/사람이 저장했으면 경고
+    try{
+      const cur=await window.fbGet(`reports/daily/${TKEY}/shared`);
+      if(cur && cur.savedAt && cur.savedAt !== (window._loadedSavedAt||0)){
+        const ct=new Date(cur.savedAt);
+        const hh=String(ct.getHours()).padStart(2,'0'), mm=String(ct.getMinutes()).padStart(2,'0');
+        const go=await askConfirm(`⚠️ 이 화면을 연 뒤에 다른 저장이 있었습니다.\n(${hh}:${mm} / ${cur.writer||'?'})\n\n지금 저장하면 그 내용을 이 화면 상태로 덮어씁니다.\n먼저 [취소] 후 저장 이력(🕐)에서 최신 내용을 확인하는 것을 권장합니다.\n\n그래도 저장할까요?`);
+        if(!go){ btn.textContent='💾 저장'; btn.disabled=false; return; }
+      }
+    }catch(e){}
+    data.savedAt=Date.now();
     // shared 하나에만 저장 - 덮어쓰기 (+ 결과 검증)
     let saveOk=true;
     if(window.fbSet) saveOk = await window.fbSet(`reports/daily/${TKEY}/shared`, data);
@@ -1759,6 +1780,7 @@ async function doSave(){
       alert('❌ 저장 실패: Firebase에 기록되지 않았습니다.\n네트워크 상태를 확인하고 다시 저장해주세요.');
       return;
     }
+    window._loadedSavedAt=data.savedAt; // 내 저장을 새 기준으로
     // 저장 직후 재확인 (기록 검증)
     try{
       const chk=await window.fbGet(`reports/daily/${TKEY}/shared`);
